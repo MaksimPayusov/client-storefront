@@ -1,36 +1,98 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
-
-## Getting Started
-
-First, run the development server:
-
-```bash
+## First, run the development server:
+npm ci
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Open
+[http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Структура проекта
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+src/
+├── app/                    # Страницы Next.js App Router
+│   ├── page.tsx           # Главная страница
+│   ├── catalog/           # Каталог товаров
+│   │   ├── page.tsx       # Весь каталог
+│   │   └── [categoryId]/  # Категории товаров
+│   ├── product/           # Страницы товаров
+│   │   └── [productId]/
+│   ├── cart/              # Корзина
+│   ├── checkout/          # Оформление заказа
+│   ├── account/           # Личный кабинет
+│   │   └── orders/        # История заказов
+│   ├── favorites/         # Избранные товары
+│   ├── brands/            # Бренды магазина
+│   ├── news/              # Новости/Блог
+│   └── about/             # О магазине
+│
+├── components/            # React компоненты
+│   ├── layout/           # Компоненты макета (Header, Footer, Layout)
+│   ├── ui/               # Базовые UI компоненты (Button, Input)
+│   ├── catalog/          # Компоненты каталога (CategoryTree)
+│   ├── shared/           # Общие компоненты (ProductCard)
+│   ├── cart/             # Компоненты корзины
+│   └── theme/            # Компоненты темы
+│
+├── store/                # Zustand stores (состояние приложения)
+│   ├── shop.store.ts     # Основные данные магазина
+│   ├── cart.store.ts     # Корзина
+│   ├── favorites.store.ts # Избранное
+│   └── order.store.ts    # Заказы
+│
+├── hooks/                # Кастомные React хуки
+│   └── useTheme.ts       # Работа с темой магазина
+│
+├── providers/            # React провайдеры
+│   └── ShopProvider.tsx  # Провайдер данных магазина
+│
+├── lib/                  # Вспомогательные функции
+│   ├── theme-utils.ts    # Утилиты работы с темами
+│   ├── category-utils.ts # Работа с категориями
+│   ├── mock-data.ts      # Моковые данные для разработки
+│   └── utils.ts          # Общие утилиты
+│
+├── types/                # TypeScript типы
+│   └── index.ts          # Все типы данных (товары, категории, etc.)
+│
+└── public/              # Статические файлы
 
-## Learn More
+### Ключевые файлы:
 
-To learn more about Next.js, take a look at the following resources:
+#### Для работы с данными:
+src/store/shop.store.ts - главный store с товарами, категориями, брендами
+src/types/index.ts - все TypeScript интерфейсы
+src/lib/mock-data.ts - временные данные для разработки
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+#### Для API интеграции:
+src/providers/ShopProvider.tsx - место для загрузки данных магазина
+src/store/shop.store.ts - методы setShop, setCategories, etc. готовы к замене на API
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+#### Тема магазина:
+src/lib/theme-utils.ts - конфигурация тем
+src/components/theme/ - компоненты управления темой
+src/hooks/useTheme.ts - хук для использования темы
 
-## Deploy on Vercel
+## API эндпоинты:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Магазин:
+GET /api/shops/{domain} - данные магазина
+GET /api/shops/{domain}/categories - дерево категорий
+GET /api/shops/{domain}/goods - товары с фильтрацией
+GET /api/shops/{domain}/brands - бренды магазина
+GET /api/shops/{domain}/news - новости/статьи
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Товары:
+GET /api/goods - список товаров с пагинацией
+GET /api/goods/{id} - детали товара
+GET /api/goods/category/{categoryId} - товары по категории
+
+### Корзина:
+GET /api/basket - получить корзину
+POST /api/basket - добавить товар
+PUT /api/basket/{id} - изменить количество
+DELETE /api/basket/{id} - удалить товар
+
+### Оформление заказа:
+GET /api/checkout/payment-methods - методы оплаты
+GET /api/checkout/delivery-methods - методы доставки
+POST /api/checkout - создать заказ
+GET /api/checkout/{id} - статус заказа
