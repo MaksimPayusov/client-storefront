@@ -102,3 +102,7 @@
 - GET /api/checkout/delivery-methods - методы доставки
 - POST /api/checkout - создать заказ
 - GET /api/checkout/{id} - статус заказа
+
+### Заказы пользователя:
+- GET /api/orders - список заказов пользователя
+- GET /api/orders/{id} - детали заказа
