@@ -1,46 +1,28 @@
-# 1. Базовый образ Node.js
-FROM node:20-alpine AS base
-
-# 2. Этап сборки зависимостей
-FROM base AS deps
+# Dockerfile (production)
+FROM node:20-alpine
 WORKDIR /app
+
+# 1. Копируем package.json для установки всех зависимостей
 COPY package.json package-lock.json* ./
+
+# 2. Устанавливаем ВСЕ зависимости (включая devDependencies для сборки)
 RUN npm ci
 
-# 3. Этап сборки приложения
-FROM base AS builder
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
+# 3. Копируем исходный код
 COPY . .
 
-# Установка переменных окружения для сборки
-ENV NEXT_TELEMETRY_DISABLED=1
+# 4. Устанавливаем переменные окружения
 ENV NODE_ENV=production
+ENV NEXT_PUBLIC_DEBUG=false
+ENV NEXT_PUBLIC_SHOP_DOMAIN=fashion-store
+ENV NEXT_TELEMETRY_DISABLED=1
 
-# Сборка Next.js приложения
+# 5. Собираем приложение
 RUN npm run build
 
-# 4. Этап продакшн
-FROM base AS runner
-WORKDIR /app
+# 6. Удаляем devDependencies после сборки (опционально, для уменьшения размера)
+RUN npm prune --production
 
-# Не запускаем от root
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
-USER nextjs
-
-# Копируем сборку из builder
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-COPY --from=builder --chown=nextjs:nodejs /app/public ./public
-
-# Порт
 EXPOSE 3000
 
-# Переменные окружения
-ENV PORT=3000
-ENV HOSTNAME="0.0.0.0"
-ENV NODE_ENV=production
-
-# Запуск приложения
-CMD ["node", "server.js"]
+CMD ["npm", "start"]

@@ -28,7 +28,12 @@ const nextConfig: NextConfig = {
   output: 'standalone',
   experimental: {
     serverActions: {
+      // Настройки если нужны
     },
+  },
+  // Добавить для отключения статической генерации проблемных страниц
+  typescript: {
+    ignoreBuildErrors: false,
   },
 };
 

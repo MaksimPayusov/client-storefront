@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { Paintbrush, Check } from 'lucide-react'
 import { useTheme } from '@/hooks/useTheme'
 import { themeConfig, type ThemeName } from '@/lib/theme-utils'
+import { isDebugMode } from '@/lib/env'
 
 export default function ThemeSwitcher() {
   const { themeName, setThemeByName } = useTheme()
@@ -17,6 +18,9 @@ export default function ThemeSwitcher() {
     'Лес',
     'Неон'
   ]
+
+  // Не показывать в продакшене
+  if (!isDebugMode) return null
 
   return (
     <div className="fixed bottom-4 left-4 z-40">
@@ -98,6 +102,7 @@ export default function ThemeSwitcher() {
         {/* Информация */}
         <div className="mt-4 pt-4 border-t text-xs text-gray-500">
           <p>Выберите тему, чтобы увидеть как она будет выглядеть в магазине</p>
+          <p className="mt-1 text-[10px] opacity-70">Только в режиме разработки</p>
         </div>
       </div>
     </div>

@@ -1,44 +1,71 @@
 'use client';
 
-import React, { useEffect, useState, Suspense } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import React, { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { CheckCircle, Home, ShoppingBag, Package, Mail, Phone } from 'lucide-react';
 import { useOrderStore, type Order } from '@/store/order.store';
 
-// Компонент с логикой, использующей useSearchParams
-function CheckoutSuccessContent() {
-  const searchParams = useSearchParams();
+export default function CheckoutSuccessPage() {
   const router = useRouter();
-  const orderId = searchParams.get('orderId');
   const [order, setOrder] = useState<Order | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [orderId, setOrderId] = useState<string | null>(null);
 
+  // Получаем orderId из URL на клиенте
   useEffect(() => {
-    if (!orderId) {
-      router.push('/');
-      return;
-    }
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const id = params.get('orderId');
+      setOrderId(id);
 
-    // Имитация загрузки заказа
-    setTimeout(() => {
-      const orderStore = useOrderStore.getState();
-      const foundOrder = orderStore.getOrderById(orderId);
-
-      if (foundOrder) {
-        setOrder(foundOrder);
-      } else {
+      if (!id) {
         router.push('/');
+        return;
       }
-    }, 500);
-  }, [orderId, router]);
 
-  if (!order) {
+      // Имитация загрузки заказа
+      setTimeout(() => {
+        const orderStore = useOrderStore.getState();
+        const foundOrder = orderStore.getOrderById(id);
+
+        if (foundOrder) {
+          setOrder(foundOrder);
+        } else {
+          router.push('/');
+        }
+        setLoading(false);
+      }, 500);
+    }
+  }, [router]);
+
+  if (loading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p>Загружаем информацию о заказе...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!order) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-4xl mb-4">😕</div>
+          <h1 className="text-2xl font-bold mb-4">Заказ не найден</h1>
+          <p className="text-gray-600 mb-6">
+            К сожалению, мы не смогли найти информацию о вашем заказе
+          </p>
+          <Link href="/">
+            <Button variant="theme-primary">
+              <Home className="mr-2 w-5 h-5" />
+              На главную
+            </Button>
+          </Link>
         </div>
       </div>
     );
@@ -218,20 +245,3 @@ function CheckoutSuccessContent() {
     </div>
   );
 }
-
-export default function CheckoutSuccessPage() {
-  return (
-    <Suspense fallback={
-      <div className="min-h-[60vh] flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p>Загружаем страницу...</p>
-        </div>
-      </div>
-    }>
-      <CheckoutSuccessContent />
-    </Suspense>
-  );
-}
-
-export const dynamic = 'force-dynamic';

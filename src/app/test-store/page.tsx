@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { useShopStore } from '@/store/shop.store'
 import { themeConfig, type ThemeName } from '@/lib/theme-utils'
+import { isDevelopment } from '@/lib/env'
+import { notFound } from 'next/navigation'
 
 const themes: ThemeName[] = [
   'Классика Dark',
@@ -16,6 +18,11 @@ const themes: ThemeName[] = [
 ]
 
 export default function TestStorePage() {
+  // Проверка окружения
+  if (!isDevelopment) {
+    notFound()
+  }
+
   const {
     shop,
     categories,
@@ -50,6 +57,13 @@ export default function TestStorePage() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto" style={{ backgroundColor: theme.backgroundColor }}>
+      <div className="mb-8 p-4 bg-yellow-100 border border-yellow-400 rounded-lg">
+        <p className="font-bold text-yellow-800">⚠️ ТЕСТОВАЯ СТРАНИЦА</p>
+        <p className="text-yellow-700 text-sm">
+          Эта страница доступна только в режиме разработки (NODE_ENV=development)
+        </p>
+      </div>
+
       <h1 className="text-3xl font-bold mb-8" style={{ color: theme.textColor }}>
         Тест состояния магазина
       </h1>

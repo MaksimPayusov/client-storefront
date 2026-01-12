@@ -9,6 +9,8 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=development
+      - NEXT_PUBLIC_DEBUG=true
+      - NEXT_PUBLIC_SHOP_DOMAIN=fashion-store
       - WATCHPACK_POLLING=true
     volumes:
       - .:/app

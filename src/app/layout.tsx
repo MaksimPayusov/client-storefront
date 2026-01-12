@@ -3,6 +3,9 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import { Layout } from '@/components/layout/Layout'
 import { ShopProvider } from '@/providers/ShopProvider'
+import { AuthProvider } from '@/providers/AuthProvider'
+import { AuthDebug } from '@/components/debug/AuthDebug'
+import { isDebugMode } from '@/lib/env'
 
 const inter = Inter({ subsets: ['latin', 'cyrillic'] })
 
@@ -16,14 +19,16 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  // В будущем shopDomain можно брать из URL или конфига
   const shopDomain = process.env.NEXT_PUBLIC_SHOP_DOMAIN || 'fashion-store'
 
   return (
     <html lang="ru" className="scroll-smooth">
       <body className={`${inter.className} bg-gray-50 text-gray-900`}>
         <ShopProvider shopDomain={shopDomain}>
-          <Layout>{children}</Layout>
+          <AuthProvider>
+            <Layout>{children}</Layout>
+            {isDebugMode && <AuthDebug />}
+          </AuthProvider>
         </ShopProvider>
       </body>
     </html>

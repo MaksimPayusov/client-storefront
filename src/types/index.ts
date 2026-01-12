@@ -1,26 +1,51 @@
 // БАЗОВЫЕ ТИПЫ
 
-export interface IUser {
-  id: string | number;
-  email: string;
-  // Дополнительные поля по мере необходимости
-}
-
 // ДЛЯ ИЗБРАННОГО
 export interface IFavoriteItem {
   productId: IGood['id'];
   addedAt: Date;
 }
 
-// АВТОРИЗАЦИЯ (из админки)
+// ПОЛЬЗОВАТЕЛЬ
+export interface IUser {
+  id: string | number;
+  email: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  avatar?: string;
+  createdAt: Date;
+  isVerified?: boolean;
+  role?: 'user' | 'admin';
+}
 
-export interface ILoginBody {
+// АВТОРИЗАЦИЯ
+export interface ILoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface IRegisterRequest {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+}
+
+export interface IAuthResponse {
+  user: IUser;
+  token: string;
+  refreshToken?: string;
+}
+
+export interface IResetPasswordRequest {
   email: string;
 }
 
-export interface ILoginConfirmBody {
-  email: string;
-  otp: string;
+export interface IConfirmPasswordRequest {
+  token: string;
+  password: string;
 }
 
 // КАТЕГОРИИ ТОВАРОВ (из ТЗ API 5.2)
