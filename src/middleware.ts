@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { apiClient } from '@/services/api'
 
 // Защищенные роуты
 const protectedRoutes = ['/account', '/checkout', '/checkout/success']
 const authRoutes = ['/auth/login', '/auth/register']
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname
 
   const isProtectedRoute = protectedRoutes.some(route =>
@@ -14,9 +15,25 @@ export function middleware(request: NextRequest) {
 
   const isAuthRoute = authRoutes.includes(path)
 
-  // В реальном приложении здесь должна быть проверка JWT токена
-  // Извлекаем токен из кук
-  const token = request.cookies.get('auth-token')?.value
+  // Проверяем JWT токен
+  let isAuthenticated = false
+  let token = null
+
+  try {
+    // Проверяем наличие токена в куках (для серверного рендеринга)
+    token = request.cookies.get('auth_token')?.value
+
+    if (!token) {
+      // Проверяем наличие токена в localStorage через apiClient
+      isAuthenticated = apiClient.isTokenExpired() ? false : true
+    } else {
+      // Если есть токен в куках, проверяем его валидность
+      isAuthenticated = true
+    }
+  } catch (error) {
+    console.error('Error checking auth:', error)
+    isAuthenticated = false
+  }
 
   // Для дебага в Docker - логируем только важные события
   if (process.env.NODE_ENV === 'development') {
@@ -24,25 +41,48 @@ export function middleware(request: NextRequest) {
       path,
       isProtectedRoute,
       isAuthRoute,
+      isAuthenticated,
       hasToken: !!token
     });
   }
 
-  // Если это protected route и нет токена - редирект на логин
-  if (isProtectedRoute && !token) {
-    console.log('Redirecting to login (no token)');
+  // Если это protected route и пользователь не авторизован - редирект на логин
+  if (isProtectedRoute && !isAuthenticated) {
+    console.log('Redirecting to login (not authenticated)');
     const loginUrl = new URL('/auth/login', request.url)
     loginUrl.searchParams.set('redirect', path)
-    return NextResponse.redirect(loginUrl)
+
+    // Создаем response с редиректом
+    const response = NextResponse.redirect(loginUrl)
+
+    // Очищаем возможные устаревшие куки
+    response.cookies.delete('auth_token')
+
+    return response
   }
 
   // Если пользователь уже авторизован и пытается зайти на страницу авторизации
-  if (isAuthRoute && token) {
+  if (isAuthRoute && isAuthenticated) {
     console.log('Redirecting to account (already authenticated)');
     return NextResponse.redirect(new URL('/account', request.url))
   }
 
-  return NextResponse.next()
+  const response = NextResponse.next()
+
+  // Если есть токен, обновляем куку (для SSR)
+  if (token) {
+    response.cookies.set({
+      name: 'auth_token',
+      value: token,
+      path: '/',
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 7, // 1 неделя
+    })
+  }
+
+  return response
 }
 
 export const config = {

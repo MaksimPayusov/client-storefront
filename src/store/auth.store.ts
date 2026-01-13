@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { IUser, IAuthResponse } from '@/types'
+import type { IUser } from '@/types'
+import { authService } from '@/services/auth.service'
 
 interface AuthState {
   user: IUser | null
@@ -8,17 +9,11 @@ interface AuthState {
   isAuthenticated: boolean
   isLoading: boolean
   error: string | null
-  registeredUsers: Array<{
-    email: string
-    password: string
-    firstName: string
-    lastName: string
-    phone?: string
-  }>
 
   // Actions
   login: (email: string, password: string) => Promise<void>
   register: (email: string, password: string, firstName: string, lastName: string, phone?: string) => Promise<void>
+  registerOwner: (email: string, password: string, firstName: string, lastName: string) => Promise<void>
   logout: () => void
   setUser: (user: IUser) => void
   setToken: (token: string) => void
@@ -26,7 +21,8 @@ interface AuthState {
   updateProfile: (data: Partial<IUser>) => Promise<void>
   resetPassword: (email: string) => Promise<void>
   confirmPassword: (token: string, password: string) => Promise<void>
-  findUserByEmail: (email: string) => Promise<IUser | undefined>
+  refreshUserProfile: () => Promise<void>
+  checkAuth: () => Promise<boolean>
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -37,129 +33,168 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       isLoading: false,
       error: null,
-      registeredUsers: [],
 
       login: async (email: string, password: string) => {
         console.log('Login attempt:', email);
         set({ isLoading: true, error: null })
+
         try {
-          await new Promise(resolve => setTimeout(resolve, 1000))
+          const tokenData = await authService.login({
+            username: email,
+            password,
+          })
 
-          if (!email || !password) {
-            throw new Error('Заполните все поля')
+          // Получаем профиль пользователя
+          const userProfile = await authService.getUserProfile()
+
+          if (!userProfile) {
+            throw new Error('Не удалось получить профиль пользователя')
           }
 
-          const { registeredUsers } = get()
-          console.log('Registered users:', registeredUsers);
-          const userData = registeredUsers.find(u => u.email === email && u.password === password)
-
-          if (!userData) {
-            throw new Error('Неверный email или пароль')
-          }
-
-          // Создаем объект пользователя
           const user: IUser = {
-            id: Date.now().toString(),
-            email: userData.email,
-            firstName: userData.firstName,
-            lastName: userData.lastName,
-            phone: userData.phone,
-            createdAt: new Date(),
-            isVerified: true,
-            role: 'user'
+            id: userProfile.id,
+            email: userProfile.email,
+            firstName: userProfile.firstName,
+            lastName: userProfile.lastName,
+            phone: userProfile.phone,
+            createdAt: new Date(userProfile.createdAt),
+            isVerified: userProfile.isVerified,
+            role: userProfile.role
           }
 
-          const token = `mock-jwt-token-${Date.now()}`
-
-          console.log('Login successful, setting state:', { user, token });
+          console.log('Login successful, setting state:', { user })
 
           set({
             user,
-            token,
+            token: tokenData.access_token,
             isAuthenticated: true,
             isLoading: false,
             error: null
           })
 
-          // Сохраняем токен в куки для middleware
-          if (typeof document !== 'undefined') {
-            document.cookie = `auth-token=${token}; path=/; max-age=86400`;
+        } catch (error: any) {
+          console.error('Login error:', error);
+
+          let errorMessage = 'Ошибка авторизации'
+          if (error.response?.status === 401) {
+            errorMessage = 'Неверный email или пароль'
+          } else if (error.response?.status === 400) {
+            errorMessage = 'Неверный формат запроса'
+          } else if (error.message) {
+            errorMessage = error.message
           }
 
-        } catch (error) {
-          console.error('Login error:', error);
           set({
-            error: error instanceof Error ? error.message : 'Ошибка авторизации',
+            error: errorMessage,
             isLoading: false,
             isAuthenticated: false
           })
-          throw error
+          throw new Error(errorMessage)
         }
       },
 
       register: async (email: string, password: string, firstName: string, lastName: string, phone?: string) => {
         set({ isLoading: true, error: null })
+
         try {
-          await new Promise(resolve => setTimeout(resolve, 1000))
-
-          if (!email || !password || !firstName || !lastName) {
-            throw new Error('Заполните обязательные поля')
-          }
-
-          // Проверяем, не зарегистрирован ли уже пользователь
-          const { registeredUsers } = get()
-          if (registeredUsers.some(u => u.email === email)) {
-            throw new Error('Пользователь с таким email уже существует')
-          }
-
-          // Создаем пользователя
-          const user: IUser = {
-            id: Date.now().toString(),
+          const userProfile = await authService.register({
             email,
+            password,
             firstName,
             lastName,
             phone,
-            createdAt: new Date(),
-            isVerified: false,
-            role: 'user'
+          })
+
+          const user: IUser = {
+            id: userProfile.id,
+            email: userProfile.email,
+            firstName: userProfile.firstName,
+            lastName: userProfile.lastName,
+            phone: userProfile.phone,
+            createdAt: new Date(userProfile.createdAt),
+            isVerified: userProfile.isVerified,
+            role: userProfile.role
           }
 
-          const token = `mock-jwt-token-${Date.now()}`
-
-          // Сохраняем пользователя в список зарегистрированных
-          set(state => ({
+          set({
             user,
-            token,
+            token: authService.getCurrentUser() ? 'registered' : null,
             isAuthenticated: true,
             isLoading: false,
-            error: null,
-            registeredUsers: [
-              ...state.registeredUsers,
-              { email, password, firstName, lastName, phone }
-            ]
-          }))
+            error: null
+          })
 
-          // Сохраняем токен в куки для middleware
-          if (typeof document !== 'undefined') {
-            document.cookie = `auth-token=${token}; path=/; max-age=86400`;
+        } catch (error: any) {
+          console.error('Register error:', error);
+
+          let errorMessage = 'Ошибка регистрации'
+          if (error.response?.status === 409) {
+            errorMessage = 'Пользователь с таким email уже существует'
+          } else if (error.message) {
+            errorMessage = error.message
           }
 
-        } catch (error) {
           set({
-            error: error instanceof Error ? error.message : 'Ошибка регистрации',
+            error: errorMessage,
             isLoading: false,
             isAuthenticated: false
           })
-          throw error
+          throw new Error(errorMessage)
+        }
+      },
+
+      registerOwner: async (email: string, password: string, firstName: string, lastName: string) => {
+        set({ isLoading: true, error: null })
+
+        try {
+          const userProfile = await authService.registerOwner({
+            email,
+            password,
+            firstName,
+            lastName,
+            role: 'owner',
+          })
+
+          const user: IUser = {
+            id: userProfile.id,
+            email: userProfile.email,
+            firstName: userProfile.firstName,
+            lastName: userProfile.lastName,
+            createdAt: new Date(userProfile.createdAt),
+            isVerified: userProfile.isVerified,
+            role: 'owner'
+          }
+
+          set({
+            user,
+            token: authService.getCurrentUser() ? 'registered' : null,
+            isAuthenticated: true,
+            isLoading: false,
+            error: null
+          })
+
+        } catch (error: any) {
+          console.error('Register owner error:', error);
+
+          let errorMessage = 'Ошибка регистрации владельца'
+          if (error.response?.status === 409) {
+            errorMessage = 'Пользователь с таким email уже существует'
+          } else if (error.message) {
+            errorMessage = error.message
+          }
+
+          set({
+            error: errorMessage,
+            isLoading: false,
+            isAuthenticated: false
+          })
+          throw new Error(errorMessage)
         }
       },
 
       logout: () => {
         console.log('Logging out');
-        // Удаляем куку
-        if (typeof document !== 'undefined') {
-          document.cookie = 'auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
-        }
+        authService.logout()
 
         set({
           user: null,
@@ -183,7 +218,9 @@ export const useAuthStore = create<AuthState>()(
 
       updateProfile: async (data: Partial<IUser>) => {
         set({ isLoading: true, error: null })
+
         try {
+          // TODO: Реализовать обновление профиля через API
           await new Promise(resolve => setTimeout(resolve, 1000))
 
           const { user } = get()
@@ -202,7 +239,7 @@ export const useAuthStore = create<AuthState>()(
             user: updatedUser,
             isLoading: false
           })
-        } catch (error) {
+        } catch (error: any) {
           set({
             error: error instanceof Error ? error.message : 'Ошибка обновления профиля',
             isLoading: false
@@ -213,11 +250,13 @@ export const useAuthStore = create<AuthState>()(
 
       resetPassword: async (email: string) => {
         set({ isLoading: true, error: null })
+
         try {
+          // TODO: Реализовать сброс пароля через API
           await new Promise(resolve => setTimeout(resolve, 1000))
           console.log('Письмо для сброса пароля отправлено на:', email)
           set({ isLoading: false })
-        } catch (error) {
+        } catch (error: any) {
           set({
             error: error instanceof Error ? error.message : 'Ошибка сброса пароля',
             isLoading: false
@@ -228,11 +267,13 @@ export const useAuthStore = create<AuthState>()(
 
       confirmPassword: async (token: string, password: string) => {
         set({ isLoading: true, error: null })
+
         try {
+          // TODO: Реализовать подтверждение пароля через API
           await new Promise(resolve => setTimeout(resolve, 1000))
           console.log('Пароль успешно изменен')
           set({ isLoading: false })
-        } catch (error) {
+        } catch (error: any) {
           set({
             error: error instanceof Error ? error.message : 'Ошибка изменения пароля',
             isLoading: false
@@ -241,31 +282,46 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      findUserByEmail: async (email: string) => {
-        const { registeredUsers } = get()
-        const userData = registeredUsers.find(u => u.email === email)
+      refreshUserProfile: async () => {
+        try {
+          const userProfile = await authService.getUserProfile()
 
-        if (!userData) return undefined
+          if (userProfile) {
+            const user: IUser = {
+              id: userProfile.id,
+              email: userProfile.email,
+              firstName: userProfile.firstName,
+              lastName: userProfile.lastName,
+              phone: userProfile.phone,
+              createdAt: new Date(userProfile.createdAt),
+              isVerified: userProfile.isVerified,
+              role: userProfile.role
+            }
 
-        return {
-          id: Date.now().toString(),
-          email: userData.email,
-          firstName: userData.firstName,
-          lastName: userData.lastName,
-          phone: userData.phone,
-          createdAt: new Date(),
-          isVerified: true,
-          role: 'user'
+            set({ user })
+          }
+        } catch (error) {
+          console.error('Error refreshing user profile:', error)
         }
-      }
+      },
+
+      checkAuth: async () => {
+        const isAuthenticated = authService.isAuthenticated()
+
+        if (isAuthenticated) {
+          await get().refreshUserProfile()
+        } else {
+          set({ user: null, token: null, isAuthenticated: false })
+        }
+
+        return isAuthenticated
+      },
     }),
     {
       name: 'auth-storage',
       partialize: (state) => ({
         user: state.user,
-        token: state.token,
         isAuthenticated: state.isAuthenticated,
-        registeredUsers: state.registeredUsers
       }),
     }
   )

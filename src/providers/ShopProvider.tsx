@@ -1,34 +1,203 @@
-// провайдер для магазина
-
 'use client'
 
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useShopStore } from '@/store/shop.store'
+import { useAuthStore } from '@/store/auth.store'
+import { shopService } from '@/services/shop.service'
 
-// Этот компонент можно использовать для инициализации данных магазина
-// когда появится API (например, загрузка по domain)
 interface ShopProviderProps {
   children: React.ReactNode
-  shopDomain?: string // Для будущей загрузки магазина по домену
+  shopDomain?: string // Для принудительной установки домена
 }
 
 export const ShopProvider: React.FC<ShopProviderProps> = ({
   children,
   shopDomain
 }) => {
-  const { setShop, setCategories, setGoods, setBrands, setNews } = useShopStore()
+  const {
+    shop,
+    loadShop,
+    loadCategories,
+    loadProducts,
+    loadBrands,
+    loadNews,
+    isLoading,
+    error
+  } = useShopStore()
 
-  // Здесь будет загрузка данных магазина по API
-  // Пока используем моки из store
+  const { isAuthenticated } = useAuthStore()
+  const [initialized, setInitialized] = useState(false)
+
+  // Загрузка данных магазина при монтировании
   useEffect(() => {
-    if (shopDomain) {
-      // В будущем: fetch(`/api/shops/${shopDomain}`)
-      console.log('Загружаем магазин по домену:', shopDomain)
-      // Пока ничего не делаем, т.к. данные уже в сторе
-    }
-  }, [shopDomain])
+    const initShop = async () => {
+      try {
+        // Определяем домен магазина
+        const domain = shopDomain || shopService.getShopDomainFromUrl()
+        console.log('Initializing shop with domain:', domain)
 
-  // Пока ничего не возвращаем, только оборачиваем children
-  // В будущем можно добавить loading состояния
+        // Загружаем магазин
+        await loadShop(domain)
+
+        setInitialized(true)
+      } catch (error) {
+        console.error('Error initializing shop:', error)
+        setInitialized(true)
+      }
+    }
+
+    if (!initialized) {
+      initShop()
+    }
+  }, [initialized, loadShop, shopDomain])
+
+  // Обновление данных магазина при изменении авторизации
+  useEffect(() => {
+    if (shop && initialized) {
+      const refreshData = async () => {
+        try {
+          const shopId = shop.id.toString()
+
+          // Загружаем актуальные данные в зависимости от авторизации
+          if (isAuthenticated) {
+            // Для авторизованных пользователей загружаем всё
+            await Promise.all([
+              loadCategories(shopId),
+              loadProducts(shopId),
+              loadBrands(shopId),
+              loadNews(shopId)
+            ])
+          } else {
+            // Для неавторизованных только основные данные
+            await Promise.all([
+              loadCategories(shopId),
+              loadProducts(shopId),
+              loadBrands(shopId)
+            ])
+          }
+        } catch (error) {
+          console.error('Error refreshing shop data:', error)
+        }
+      }
+
+      refreshData()
+    }
+  }, [shop, isAuthenticated, initialized, loadCategories, loadProducts, loadBrands, loadNews])
+
+  // Обработка изменения домена в реальном времени
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const handleDomainChange = () => {
+      const currentDomain = shopService.getShopDomainFromUrl()
+      const shopDomainStr = shop?.domain || ''
+
+      if (shopDomainStr && currentDomain !== shopDomainStr) {
+        console.log('Domain changed, reloading shop...')
+        loadShop(currentDomain)
+      }
+    }
+
+    // Слушаем изменения URL (например, переход между магазинами)
+    window.addEventListener('popstate', handleDomainChange)
+
+    // Можно также слушать изменения в query параметрах
+    const observer = new MutationObserver(handleDomainChange)
+    observer.observe(document, { childList: true, subtree: true })
+
+    return () => {
+      window.removeEventListener('popstate', handleDomainChange)
+      observer.disconnect()
+    }
+  }, [shop?.domain, loadShop])
+
+  // Показываем loading состояние
+  if (isLoading && !initialized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Загружаем магазин...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Показываем ошибку
+  if (error && !shop) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center p-8 max-w-md">
+          <div className="text-red-500 text-5xl mb-4">⚠️</div>
+          <h2 className="text-xl font-semibold mb-2">Ошибка загрузки магазина</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button
+            onClick={() => {
+              const domain = shopDomain || shopService.getShopDomainFromUrl()
+              loadShop(domain)
+            }}
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          >
+            Попробовать снова
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // Показываем fallback если магазин не найден
+  if (!shop && initialized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center p-8 max-w-md">
+          <div className="text-gray-400 text-5xl mb-4">🏪</div>
+          <h2 className="text-xl font-semibold mb-2">Магазин не найден</h2>
+          <p className="text-gray-600 mb-4">
+            Магазин с таким адресом не существует или временно недоступен.
+          </p>
+          <a
+            href="/"
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 inline-block"
+          >
+            На главную
+          </a>
+        </div>
+      </div>
+    )
+  }
+
+  // Встраиваем тему магазина в стили
+  useEffect(() => {
+    if (shop && typeof window !== 'undefined') {
+      const style = document.createElement('style')
+      style.textContent = `
+        :root {
+          --shop-primary-color: ${shop.primaryColor || '#3b82f6'};
+          --shop-secondary-color: ${shop.secondaryColor || '#1e40af'};
+          --shop-background-color: ${shop.backgroundColor || '#f9fafb'};
+          --shop-text-color: ${shop.textColor || '#111827'};
+          --shop-accent-color: ${shop.accentColor || '#10b981'};
+        }
+
+        .shop-theme-primary {
+          color: var(--shop-primary-color);
+        }
+
+        .shop-theme-bg-primary {
+          background-color: var(--shop-primary-color);
+        }
+
+        .shop-theme-border-primary {
+          border-color: var(--shop-primary-color);
+        }
+      `
+      document.head.appendChild(style)
+
+      return () => {
+        document.head.removeChild(style)
+      }
+    }
+  }, [shop])
+
   return <>{children}</>
 }

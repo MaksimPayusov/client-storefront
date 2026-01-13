@@ -1,11 +1,17 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { IGood } from '@/types'
+import { cartService } from '@/services/cart.service'
 
 export interface CartItem {
-  productId: IGood['id']
+  productId: string
+  name: string
+  price: number
   quantity: number
   size?: string
+  color?: string
+  imageUrl?: string
+  maxQuantity: number
   addedAt: Date
 }
 
@@ -13,15 +19,21 @@ interface CartState {
   items: CartItem[]
   totalQuantity: number
   totalAmount: number
+  isLoading: boolean
+  error: string | null
+  lastSync: Date | null
 
   // Actions
-  addToCart: (productId: IGood['id'], quantity?: number, size?: string) => void
-  removeFromCart: (productId: IGood['id']) => void
-  updateQuantity: (productId: IGood['id'], quantity: number) => void
-  clearCart: () => void
-  getItemQuantity: (productId: IGood['id']) => number
-  isInCart: (productId: IGood['id']) => boolean
+  loadCart: () => Promise<void>
+  addToCart: (productId: string, quantity?: number, size?: string, color?: string) => Promise<void>
+  removeFromCart: (productId: string) => Promise<void>
+  updateQuantity: (productId: string, quantity: number) => Promise<void>
+  clearCart: () => Promise<void>
+  syncWithServer: () => Promise<void>
+  getItemQuantity: (productId: string) => number
+  isInCart: (productId: string) => boolean
   calculateTotals: () => void
+  clearError: () => void
 }
 
 export const useCartStore = create<CartState>()(
@@ -30,92 +42,203 @@ export const useCartStore = create<CartState>()(
       items: [],
       totalQuantity: 0,
       totalAmount: 0,
+      isLoading: false,
+      error: null,
+      lastSync: null,
 
-      addToCart: (productId, quantity = 1, size) => {
-        set((state) => {
-          const existingItemIndex = state.items.findIndex(
-            item => item.productId === productId
-          )
+      loadCart: async () => {
+        set({ isLoading: true, error: null })
 
-          let newItems: CartItem[]
+        try {
+          const cart = await cartService.getCart()
 
-          if (existingItemIndex >= 0) {
-            // Увеличиваем количество существующего товара
-            newItems = state.items.map((item, index) =>
-              index === existingItemIndex
-                ? {
-                    ...item,
-                    quantity: item.quantity + quantity,
-                    size: size || item.size,
-                    addedAt: new Date()
-                  }
-                : item
-            )
-          } else {
-            // Добавляем новый товар
-            newItems = [
-              ...state.items,
-              {
-                productId,
-                quantity,
-                size,
-                addedAt: new Date()
-              }
-            ]
-          }
+          const items: CartItem[] = cart.items.map(item => ({
+            productId: item.productId,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+            size: item.size,
+            color: item.color,
+            imageUrl: item.imageUrl,
+            maxQuantity: item.maxQuantity,
+            addedAt: new Date(),
+          }))
 
-          // Рассчитываем новые итоги
-          const newTotalQuantity = newItems.reduce((sum, item) => sum + item.quantity, 0)
-          const newTotalAmount = newItems.length // В реальности нужно считать по ценам товаров
+          set({
+            items,
+            totalQuantity: cart.totalItems,
+            totalAmount: cart.totalAmount,
+            isLoading: false,
+            lastSync: new Date(),
+          })
 
-          return {
-            items: newItems,
-            totalQuantity: newTotalQuantity,
-            totalAmount: newTotalAmount
-          }
-        })
+        } catch (error: any) {
+          console.error('Error loading cart:', error)
+
+          set({
+            isLoading: false,
+            error: 'Ошибка загрузки корзины',
+          })
+        }
       },
 
-      removeFromCart: (productId) => {
-        set((state) => {
-          const newItems = state.items.filter(item => item.productId !== productId)
-          const newTotalQuantity = newItems.reduce((sum, item) => sum + item.quantity, 0)
-          const newTotalAmount = newItems.length
+      addToCart: async (productId, quantity = 1, size, color) => {
+        set({ isLoading: true, error: null })
 
-          return {
-            items: newItems,
-            totalQuantity: newTotalQuantity,
-            totalAmount: newTotalAmount
+        try {
+          const cart = await cartService.addItem({
+            productId,
+            quantity,
+            size,
+            color,
+          })
+
+          const items: CartItem[] = cart.items.map(item => ({
+            productId: item.productId,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+            size: item.size,
+            color: item.color,
+            imageUrl: item.imageUrl,
+            maxQuantity: item.maxQuantity,
+            addedAt: new Date(),
+          }))
+
+          set({
+            items,
+            totalQuantity: cart.totalItems,
+            totalAmount: cart.totalAmount,
+            isLoading: false,
+            lastSync: new Date(),
+          })
+
+        } catch (error: any) {
+          console.error('Error adding to cart:', error)
+
+          let errorMessage = 'Ошибка добавления в корзину'
+          if (error.response?.status === 400) {
+            errorMessage = 'Неверные данные товара'
+          } else if (error.response?.status === 404) {
+            errorMessage = 'Товар не найден'
           }
-        })
+
+          set({
+            isLoading: false,
+            error: errorMessage,
+          })
+
+          throw new Error(errorMessage)
+        }
       },
 
-      updateQuantity: (productId, quantity) => {
+      removeFromCart: async (productId) => {
+        set({ isLoading: true, error: null })
+
+        try {
+          const cart = await cartService.removeItem(productId)
+
+          const items: CartItem[] = cart.items.map(item => ({
+            productId: item.productId,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+            size: item.size,
+            color: item.color,
+            imageUrl: item.imageUrl,
+            maxQuantity: item.maxQuantity,
+            addedAt: new Date(),
+          }))
+
+          set({
+            items,
+            totalQuantity: cart.totalItems,
+            totalAmount: cart.totalAmount,
+            isLoading: false,
+            lastSync: new Date(),
+          })
+
+        } catch (error: any) {
+          console.error('Error removing from cart:', error)
+
+          set({
+            isLoading: false,
+            error: 'Ошибка удаления из корзины',
+          })
+        }
+      },
+
+      updateQuantity: async (productId, quantity) => {
         if (quantity < 1) {
-          get().removeFromCart(productId)
+          await get().removeFromCart(productId)
           return
         }
 
-        set((state) => {
-          const newItems = state.items.map(item =>
-            item.productId === productId
-              ? { ...item, quantity, addedAt: new Date() }
-              : item
-          )
+        set({ isLoading: true, error: null })
 
-          const newTotalQuantity = newItems.reduce((sum, item) => sum + item.quantity, 0)
-          const newTotalAmount = newItems.length
+        try {
+          const cart = await cartService.updateQuantity(productId, quantity)
 
-          return {
-            items: newItems,
-            totalQuantity: newTotalQuantity,
-            totalAmount: newTotalAmount
-          }
-        })
+          const items: CartItem[] = cart.items.map(item => ({
+            productId: item.productId,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+            size: item.size,
+            color: item.color,
+            imageUrl: item.imageUrl,
+            maxQuantity: item.maxQuantity,
+            addedAt: new Date(),
+          }))
+
+          set({
+            items,
+            totalQuantity: cart.totalItems,
+            totalAmount: cart.totalAmount,
+            isLoading: false,
+            lastSync: new Date(),
+          })
+
+        } catch (error: any) {
+          console.error('Error updating quantity:', error)
+
+          set({
+            isLoading: false,
+            error: 'Ошибка обновления количества',
+          })
+        }
       },
 
-      clearCart: () => {
-        set({ items: [], totalQuantity: 0, totalAmount: 0 })
+      clearCart: async () => {
+        set({ isLoading: true, error: null })
+
+        try {
+          await cartService.clearCart()
+
+          set({
+            items: [],
+            totalQuantity: 0,
+            totalAmount: 0,
+            isLoading: false,
+            lastSync: new Date(),
+          })
+
+        } catch (error: any) {
+          console.error('Error clearing cart:', error)
+
+          set({
+            isLoading: false,
+            error: 'Ошибка очистки корзины',
+          })
+        }
+      },
+
+      syncWithServer: async () => {
+        try {
+          await get().loadCart()
+        } catch (error) {
+          console.error('Error syncing cart:', error)
+        }
       },
 
       getItemQuantity: (productId) => {
@@ -130,13 +253,23 @@ export const useCartStore = create<CartState>()(
       calculateTotals: () => {
         const { items } = get()
         const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0)
-        const totalAmount = items.length // В реальности нужно считать сумму
+        const totalAmount = items.reduce((sum, item) => sum + (item.price * item.quantity), 0)
 
         set({ totalQuantity, totalAmount })
-      }
+      },
+
+      clearError: () => {
+        set({ error: null })
+      },
     }),
     {
       name: 'cart-storage',
+      partialize: (state) => ({
+        items: state.items,
+        totalQuantity: state.totalQuantity,
+        totalAmount: state.totalAmount,
+        lastSync: state.lastSync,
+      }),
     }
   )
 )
