@@ -25,4 +25,5 @@ RUN npm prune --production
 
 EXPOSE 3000
 
-CMD ["npm", "start"]
+# Используем standalone сервер для production
+CMD ["node", ".next/standalone/server.js"]

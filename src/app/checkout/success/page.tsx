@@ -84,7 +84,7 @@ export default function CheckoutSuccessPage() {
         </p>
         <p className="text-gray-600">
           Мы отправили подтверждение на email{' '}
-          <span className="font-semibold">{order.recipient.email}</span>
+          <span className="font-semibold">{order.shippingAddress.email}</span>
         </p>
       </div>
 
@@ -115,11 +115,11 @@ export default function CheckoutSuccessPage() {
             <div>
               <p className="text-sm text-gray-600 mb-1">Статус</p>
               <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-                {order.status === 'pending' && 'Ожидает обработки'}
-                {order.status === 'processing' && 'В обработке'}
-                {order.status === 'shipped' && 'Отправлен'}
-                {order.status === 'delivered' && 'Доставлен'}
-                {order.status === 'cancelled' && 'Отменен'}
+                {order.status === 'PENDING' && 'Ожидает обработки'}
+                {order.status === 'PROCESSING' && 'В обработке'}
+                {order.status === 'SHIPPED' && 'Отправлен'}
+                {order.status === 'DELIVERED' && 'Доставлен'}
+                {order.status === 'CANCELLED' && 'Отменен'}
               </span>
             </div>
 
@@ -138,11 +138,11 @@ export default function CheckoutSuccessPage() {
             <div className="flex items-start gap-3">
               <Package className="w-5 h-5 text-gray-400 mt-0.5" />
               <div>
-                <p className="font-medium mb-1">{order.delivery.title}</p>
-                <p className="text-sm text-gray-600">{order.delivery.description}</p>
-                {order.delivery.price > 0 && (
+                <p className="font-medium mb-1">{order.deliveryMethod.name}</p>
+                <p className="text-sm text-gray-600">{order.deliveryMethod.description}</p>
+                {order.deliveryMethod.price > 0 && (
                   <p className="text-sm font-medium mt-1">
-                    Стоимость: {order.delivery.price} ₽
+                    Стоимость: {order.deliveryMethod.price} ₽
                   </p>
                 )}
               </div>
@@ -153,7 +153,7 @@ export default function CheckoutSuccessPage() {
               <div>
                 <p className="font-medium mb-1">Получатель</p>
                 <p className="text-sm text-gray-600">
-                  {order.recipient.firstName} {order.recipient.lastName}
+                  {order.shippingAddress.firstName} {order.shippingAddress.lastName}
                 </p>
               </div>
             </div>
@@ -162,14 +162,14 @@ export default function CheckoutSuccessPage() {
               <Phone className="w-5 h-5 text-gray-400 mt-0.5" />
               <div>
                 <p className="font-medium mb-1">Контактные данные</p>
-                <p className="text-sm text-gray-600">{order.recipient.phone}</p>
-                <p className="text-sm text-gray-600">{order.recipient.email}</p>
+                <p className="text-sm text-gray-600">{order.shippingAddress.phone}</p>
+                <p className="text-sm text-gray-600">{order.shippingAddress.email}</p>
               </div>
             </div>
 
             <div>
               <p className="font-medium mb-1">Адрес доставки</p>
-              <p className="text-sm text-gray-600">{order.recipient.address}</p>
+              <p className="text-sm text-gray-600">{order.shippingAddress.street}</p>
             </div>
           </div>
         </div>
@@ -184,9 +184,9 @@ export default function CheckoutSuccessPage() {
             <div key={index} className="flex items-center justify-between py-4 border-b last:border-0">
               <div className="flex items-center gap-4">
                 <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center">
-                  {item.image ? (
+                  {item.imageUrl ? (
                     <img
-                      src={item.image}
+                      src={item.imageUrl}
                       alt={item.name}
                       className="w-full h-full object-cover rounded-lg"
                     />

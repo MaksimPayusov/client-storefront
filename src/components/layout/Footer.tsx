@@ -8,7 +8,7 @@ import { useShopStore } from '@/store/shop.store'
 
 const Footer = () => {
   const { theme, themeName } = useTheme()
-  const shopName = useShopStore((state) => state.shop.name)
+  const shopName = useShopStore((state) => state.shop?.name || 'Магазин')
 
   const footerLinks = {
     Магазин: [

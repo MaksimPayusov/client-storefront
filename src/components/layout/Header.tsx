@@ -22,7 +22,7 @@ const Header = () => {
   const favoritesCount = items.length
 
   // Получаем название магазина
-  const shopName = useShopStore((state) => state.shop.name)
+  const shopName = useShopStore((state) => state.shop?.name || 'Fashion Store')
 
   const navLinks = [
     { href: '/', label: 'Главная' },

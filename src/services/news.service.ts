@@ -41,6 +41,7 @@ export interface UpdateNewsRequest {
   imageUrl?: string;
   author?: string;
   isPublished?: boolean;
+  views?: number;
   tags?: string[];
 }
 

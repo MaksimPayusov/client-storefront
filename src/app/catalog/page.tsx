@@ -120,7 +120,7 @@ export default function CatalogPage() {
             backgroundColor: `${theme.primaryColor}08`,
             borderLeft: `4px solid ${theme.primaryColor}`
           }}>
-            <h2 className="text-xl font-semibold mb-2">{activeCategory.title}</h2>
+            <h2 className="text-xl font-semibold mb-2">{activeCategory.name}</h2>
             {activeCategory.description && (
               <p className="text-gray-600">{activeCategory.description}</p>
             )}
@@ -243,7 +243,7 @@ export default function CatalogPage() {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
             <div className="text-gray-600">
               Найдено {filteredGoods.length} товаров
-              {selectedCategory && ` в категории "${activeCategory?.title}"`}
+              {selectedCategory && ` в категории "${activeCategory?.name}"`}
             </div>
 
             <div className="flex items-center gap-2">
@@ -271,7 +271,7 @@ export default function CatalogPage() {
                     onClick={() => setSelectedCategory(child.id)}
                     className="p-4 text-left rounded-xl border hover:border-gray-400 transition-colors"
                   >
-                    <div className="font-medium">{child.title}</div>
+                    <div className="font-medium">{child.name}</div>
                     <div className="text-sm text-gray-500 mt-1">
                       {getGoodsByCategory(child.id, true).length} товаров
                     </div>

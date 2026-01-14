@@ -372,11 +372,11 @@ export default function AccountPage() {
                         <div className="text-right">
                           <div className="font-bold text-lg">{order.total.toLocaleString()} ₽</div>
                           <div className="text-xs text-gray-500 capitalize">
-                            {order.status === 'pending' && 'Ожидает'}
-                            {order.status === 'processing' && 'В обработке'}
-                            {order.status === 'shipped' && 'Отправлен'}
-                            {order.status === 'delivered' && 'Доставлен'}
-                            {order.status === 'cancelled' && 'Отменен'}
+                            {order.status === 'PENDING' && 'Ожидает'}
+                            {order.status === 'PROCESSING' && 'В обработке'}
+                            {order.status === 'SHIPPED' && 'Отправлен'}
+                            {order.status === 'DELIVERED' && 'Доставлен'}
+                            {order.status === 'CANCELLED' && 'Отменен'}
                           </div>
                         </div>
                       </div>

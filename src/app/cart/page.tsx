@@ -44,11 +44,11 @@ export default function CartPage() {
   const total = subtotal + shipping
 
   const handleQuantityChange = (productId: number | string, newQuantity: number) => {
-    const numericId = typeof productId === 'string' ? parseInt(productId, 10) : productId;
+    const stringId = typeof productId === 'string' ? productId : productId.toString();
     if (newQuantity < 1) {
-      removeFromCart(numericId)
+      removeFromCart(stringId)
     } else {
-      updateQuantity(numericId, newQuantity)
+      updateQuantity(stringId, newQuantity)
     }
   }
 

@@ -14,6 +14,10 @@ export const ShopDomain: React.FC<ShopDomainProps> = ({
 }) => {
   const shop = useShopStore((state) => state.shop)
 
+  if (!shop) {
+    return <span className={`font-mono text-sm ${className}`}>fashionconstruct.ru</span>
+  }
+
   const domain = showFullUrl
     ? `${shop.domain}.fashionconstruct.ru`
     : shop.domain

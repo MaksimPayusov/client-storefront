@@ -59,7 +59,7 @@ export const useAuthStore = create<AuthState>()(
             phone: userProfile.phone,
             createdAt: new Date(userProfile.createdAt),
             isVerified: userProfile.isVerified,
-            role: userProfile.role
+            role: userProfile.role as 'user' | 'admin'
           }
 
           console.log('Login successful, setting state:', { user })
@@ -113,7 +113,7 @@ export const useAuthStore = create<AuthState>()(
             phone: userProfile.phone,
             createdAt: new Date(userProfile.createdAt),
             isVerified: userProfile.isVerified,
-            role: userProfile.role
+            role: userProfile.role as 'user' | 'admin' | 'owner'
           }
 
           set({
@@ -295,7 +295,7 @@ export const useAuthStore = create<AuthState>()(
               phone: userProfile.phone,
               createdAt: new Date(userProfile.createdAt),
               isVerified: userProfile.isVerified,
-              role: userProfile.role
+              role: userProfile.role as 'user' | 'admin' | 'owner'
             }
 
             set({ user })

@@ -29,7 +29,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         {/* Debug info - только в режиме разработки */}
         {isDebugMode && (
           <div className="fixed bottom-20 right-4 z-50 bg-black/80 text-white text-xs p-2 rounded-lg opacity-70">
-            Тема: {shop.theme || 'стандартная'}
+            Тема: {shop?.theme || 'стандартная'}
           </div>
         )}
 

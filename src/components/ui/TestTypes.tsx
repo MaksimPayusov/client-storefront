@@ -15,7 +15,7 @@ const TestTypes: React.FC = () => {
 
   const testCategory: IGoodCategory = {
     id: 1,
-    title: 'Одежда',
+    name: 'Одежда',
     description: 'Категория одежды',
     parentId: null,
   };
@@ -31,7 +31,7 @@ const TestTypes: React.FC = () => {
       <h2 className="text-lg font-bold mb-4">Тест TypeScript типов</h2>
       <div className="space-y-2">
         <p><strong>Товар:</strong> {testProduct.name}</p>
-        <p><strong>Категория:</strong> {testCategory.title}</p>
+        <p><strong>Категория:</strong> {testCategory.name}</p>
         <p><strong>В корзине:</strong> {testBasketItem.count} шт.</p>
         <p className="text-sm text-green-600 mt-4">
           ✅ Типы успешно импортированы и работают!

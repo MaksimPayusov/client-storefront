@@ -14,54 +14,54 @@ import type {
 export const mockCategories: IGoodCategory[] = [
   {
     id: 1,
-    title: 'Женская одежда',
+    name: 'Женская одежда',
     description: 'Одежда для женщин',
     parentId: null,
   },
   {
     id: 2,
-    title: 'Мужская одежда',
+    name: 'Мужская одежда',
     description: 'Одежда для мужчин',
     parentId: null,
   },
   {
     id: 3,
-    title: 'Платья',
+    name: 'Платья',
     description: 'Летние, вечерние, повседневные платья',
     parentId: 1, // Дочерняя от "Женская одежда"
     image: '/images/categories/dresses.svg',
   },
   {
     id: 4,
-    title: 'Верхняя одежда',
+    name: 'Верхняя одежда',
     description: 'Куртки, пальто, пуховики',
     parentId: 1,
     image: '/images/categories/outerwear.svg',
   },
   {
     id: 5,
-    title: 'Джинсы',
+    name: 'Джинсы',
     description: 'Разные фасоны джинсов',
     parentId: 2, // Дочерняя от "Мужская одежда"
     image: '/images/categories/jeans.svg',
   },
   {
     id: 6,
-    title: 'Футболки',
+    name: 'Футболки',
     description: 'Базовые и принтованные футболки',
     parentId: 2,
     image: '/images/categories/t-shirts.svg',
   },
   {
     id: 7,
-    title: 'Куртки',
+    name: 'Куртки',
     description: 'Кожаные, джинсовые, ветровки',
     parentId: 4, // Дочерняя от "Верхняя одежда"
     image: '/images/categories/jackets.svg',
   },
   {
     id: 8,
-    title: 'Пальто',
+    name: 'Пальто',
     description: 'Тёплые и лёгкие пальто',
     parentId: 4,
     image: '/images/categories/coats.svg',

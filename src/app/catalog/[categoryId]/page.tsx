@@ -60,10 +60,10 @@ export default function CategoryPage() {
           <div key={cat.id} className="flex items-center">
             <span>/</span>
             {index === categoryPath.length - 1 ? (
-              <span className="text-black font-medium ml-2">{cat.title}</span>
+              <span className="text-black font-medium ml-2">{cat.name}</span>
             ) : (
               <Link href={`/catalog/${cat.id}`} className="hover:text-black ml-2">
-                {cat.title}
+                {cat.name}
               </Link>
             )}
           </div>
@@ -74,7 +74,7 @@ export default function CategoryPage() {
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-3xl font-bold mb-2">{category.title}</h1>
+            <h1 className="text-3xl font-bold mb-2">{category.name}</h1>
             {category.description && (
               <p className="text-gray-600">{category.description}</p>
             )}
@@ -118,7 +118,7 @@ export default function CategoryPage() {
                     className="group bg-gray-50 rounded-xl p-6 hover:bg-gray-100 transition-colors"
                   >
                     <h3 className="font-semibold mb-2 group-hover:text-primary transition-colors">
-                      {child.title}
+                      {child.name}
                     </h3>
                     <p className="text-sm text-gray-600 line-clamp-2">
                       {child.description}

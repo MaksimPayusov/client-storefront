@@ -44,7 +44,7 @@ export default function HomePage() {
               className="group relative overflow-hidden rounded-xl bg-gray-100 aspect-square"
             >
               <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
-                <h3 className="text-lg font-semibold text-center">{category.title}</h3>
+                <h3 className="text-lg font-semibold text-center">{category.name}</h3>
                 <p className="text-sm text-gray-600 mt-2 text-center opacity-0 group-hover:opacity-100 transition-opacity">
                   {category.description}
                 </p>

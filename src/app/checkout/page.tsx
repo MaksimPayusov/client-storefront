@@ -27,8 +27,8 @@ export default function CheckoutPage() {
     comment: '',
   });
 
-  const [selectedDelivery, setSelectedDelivery] = useState(deliveryMethods[0].id);
-  const [selectedPayment, setSelectedPayment] = useState(paymentMethods[0].id);
+  const [selectedDelivery, setSelectedDelivery] = useState(deliveryMethods[0]?.id.toString() || '1');
+  const [selectedPayment, setSelectedPayment] = useState(paymentMethods[0]?.id.toString() || '1');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -49,7 +49,7 @@ export default function CheckoutPage() {
     sum + (item.price * item.quantity), 0
   );
 
-  const deliveryMethod = deliveryMethods.find(d => d.id === selectedDelivery);
+  const deliveryMethod = deliveryMethods.find(d => d.id.toString() === selectedDelivery);
   const deliveryPrice = deliveryMethod?.price || 0;
   const total = subtotal + deliveryPrice;
 
@@ -90,27 +90,27 @@ export default function CheckoutPage() {
 
     try {
       // Создаем заказ
-      const order = createOrder({
+      const order = await createOrder({
+        shopId: 'default-shop', // TODO: get from context
         items: cartProducts.map(item => ({
           productId: item.productId,
           quantity: item.quantity,
-          price: item.price,
-          name: item.name,
-          image: item.image,
+          size: item.size,
+          color: item.color,
         })),
-        recipient: {
+        shippingAddress: {
           firstName: formData.firstName,
           lastName: formData.lastName,
           phone: formData.phone,
           email: formData.email,
-          address: formData.address,
-          comment: formData.comment,
+          country: 'Russia', // TODO: add to form
+          city: formData.address.split(',')[0]?.trim() || 'Unknown',
+          street: formData.address,
+          postalCode: '000000', // TODO: add to form
         },
-        delivery: deliveryMethod!,
-        payment: paymentMethods.find(p => p.id === selectedPayment)!,
-        subtotal,
-        deliveryPrice,
-        total,
+        deliveryMethodId: selectedDelivery.toString(),
+        paymentMethodId: selectedPayment.toString(),
+        notes: formData.comment,
       });
 
       clearCart();
@@ -260,15 +260,15 @@ export default function CheckoutPage() {
                   <input
                     type="radio"
                     name="delivery"
-                    value={method.id}
-                    checked={selectedDelivery === method.id}
-                    onChange={(e) => setSelectedDelivery(Number(e.target.value))}
+                    value={method.id.toString()}
+                    checked={selectedDelivery === method.id.toString()}
+                    onChange={(e) => setSelectedDelivery(e.target.value)}
                     className="mt-1"
                   />
                   <div className="flex-1">
                     <div className="flex justify-between items-start">
                       <div>
-                        <h3 className="font-semibold">{method.title}</h3>
+                        <h3 className="font-semibold">{method.name}</h3>
                         <p className="text-sm text-gray-600">{method.description}</p>
                       </div>
                       <div className="font-bold">
@@ -303,13 +303,13 @@ export default function CheckoutPage() {
                   <input
                     type="radio"
                     name="payment"
-                    value={method.id}
-                    checked={selectedPayment === method.id}
-                    onChange={(e) => setSelectedPayment(Number(e.target.value))}
+                    value={method.id.toString()}
+                    checked={selectedPayment === method.id.toString()}
+                    onChange={(e) => setSelectedPayment(e.target.value)}
                     className="mt-1"
                   />
                   <div className="flex-1">
-                    <h3 className="font-semibold">{method.title}</h3>
+                    <h3 className="font-semibold">{method.name}</h3>
                     <p className="text-sm text-gray-600">{method.description}</p>
                   </div>
                 </label>

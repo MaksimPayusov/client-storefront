@@ -38,6 +38,20 @@ export default function TestStorePage() {
     setShop,
   } = useShopStore()
 
+  // Проверка загрузки магазина
+  if (!shop) {
+    return (
+      <div className="p-6 max-w-6xl mx-auto">
+        <div className="mb-8 p-4 bg-yellow-100 border border-yellow-400 rounded-lg">
+          <p className="font-bold text-yellow-800">⚠️ ТЕСТОВАЯ СТРАНИЦА</p>
+          <p className="text-yellow-700 text-sm">
+            Магазин загружается...
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   const [newShopName, setNewShopName] = useState(shop.name)
   const [newShopDomain, setNewShopDomain] = useState(shop.domain)
 

@@ -102,6 +102,8 @@ interface OrderState {
   clearError: () => void
 
   // Геттеры
+  getUserOrders: () => Order[]
+  getOrderById: (id: string) => Order | undefined
   getOrderByNumber: (orderNumber: string) => Order | undefined
   getOrdersByStatus: (status: Order['status']) => Order[]
   getPendingOrders: () => Order[]
@@ -258,6 +260,17 @@ export const useOrderStore = create<OrderState>()(
 
       clearError: () => {
         set({ error: null })
+      },
+
+      getUserOrders: () => {
+        return get().orders
+      },
+
+      getOrderById: (id: string) => {
+        const order = get().orders.find(order => order.id === id)
+        if (order) return order
+        const current = get().currentOrder
+        return current && current.id === id ? current : undefined
       },
 
       getOrderByNumber: (orderNumber: string) => {

@@ -16,7 +16,7 @@ export interface IUser {
   avatar?: string;
   createdAt: Date;
   isVerified?: boolean;
-  role?: 'user' | 'admin';
+  role?: 'user' | 'admin' | 'owner';
 }
 
 // АВТОРИЗАЦИЯ
@@ -52,7 +52,7 @@ export interface IConfirmPasswordRequest {
 
 export interface IGoodCategory {
   id: number;
-  title: string;
+  name: string;
   description: string;
   parentId: IGoodCategory['id'] | null;
   // Дополнительные поля для UI
@@ -176,9 +176,21 @@ export interface IShop {
   domain: string;
   description?: string;
   coverImage?: string;
+  logoUrl?: string;
+  bannerUrl?: string;
   theme?: string;
   categories: string[]; // ID категорий
   brands: string[]; // Названия брендов
+  // Дата создания и обновления
+  createdAt?: Date;
+  updatedAt?: Date;
+  isActive?: boolean;
+  // Цветовая тема магазина
+  primaryColor?: string;
+  secondaryColor?: string;
+  backgroundColor?: string;
+  textColor?: string;
+  accentColor?: string;
   // Можно добавить больше полей по необходимости
 }
 

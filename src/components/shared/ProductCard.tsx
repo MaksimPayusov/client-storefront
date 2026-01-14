@@ -39,7 +39,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
     if (!product.inStock) return
 
-    addToCart(product.id, 1, product.sizes?.[0])
+    addToCart(String(product.id), 1, product.sizes?.[0])
 
     // Показываем уведомление (в реальности можно использовать toast)
     if (onAddToCart) {
@@ -60,8 +60,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   };
 
   const { addToCart, isInCart, getItemQuantity } = useCartStore()
-  const isInCartProduct = isInCart(product.id)
-  const cartQuantity = getItemQuantity(product.id)
+  const isInCartProduct = isInCart(String(product.id))
+  const cartQuantity = getItemQuantity(String(product.id))
 
   return (
     <Link

@@ -66,7 +66,7 @@ class ApiClient {
   }
 
   // Получение токена из localStorage
-  private getAccessToken(): string | null {
+  public getAccessToken(): string | null {
     if (typeof window === 'undefined') return null;
 
     const tokenData = localStorage.getItem('token_data');
@@ -115,7 +115,7 @@ class ApiClient {
   }
 
   // Обновление токена
-  private async refreshAccessToken(): Promise<string> {
+  public async refreshAccessToken(): Promise<string> {
     // Предотвращаем множественные запросы на обновление
     if (this.refreshPromise) {
       return this.refreshPromise;

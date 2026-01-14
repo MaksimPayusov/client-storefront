@@ -16,8 +16,8 @@ export default function ProductInteractivePart({ product }: ProductInteractivePa
 
   // Добавляем useCartStore
   const { addToCart, isInCart, getItemQuantity } = useCartStore()
-  const isInCartProduct = isInCart(product.id)
-  const cartQuantity = getItemQuantity(product.id)
+  const isInCartProduct = isInCart(String(product.id))
+  const cartQuantity = getItemQuantity(String(product.id))
 
   const handleAddToCart = () => {
     if (!product.inStock || (!selectedSize && product.sizes && product.sizes.length > 0)) {
@@ -25,7 +25,7 @@ export default function ProductInteractivePart({ product }: ProductInteractivePa
       return
     }
 
-    addToCart(product.id, quantity, selectedSize)
+    addToCart(String(product.id), quantity, selectedSize)
     alert(`Товар "${product.name}" добавлен в корзину (${quantity} шт.)`)
   }
 
