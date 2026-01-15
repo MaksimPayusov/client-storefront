@@ -11,7 +11,7 @@ import Link from 'next/link'
 export default function CategoryPage() {
   const params = useParams()
   const router = useRouter()
-  const categoryId = parseInt(params.categoryId as string)
+  const categoryId = params.categoryId as string
 
   const {
     findCategory,

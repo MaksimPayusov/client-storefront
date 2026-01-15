@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils'
 import { useTheme } from '@/hooks/useTheme'
 
 interface CategoryTreeProps {
-  activeCategoryId?: number
+  activeCategoryId?: string
   showRoot?: boolean
   collapsible?: boolean
   className?: string
@@ -23,12 +23,12 @@ export const CategoryTree: React.FC<CategoryTreeProps> = ({
   const { getCategoryTree, getChildCategories } = useShopStore()
   const { theme } = useTheme()
 
-  const [collapsed, setCollapsed] = React.useState<Record<number, boolean>>({})
+  const [collapsed, setCollapsed] = React.useState<Record<string, boolean>>({})
 
   const categoryTree = getCategoryTree()
   const rootCategories = getChildCategories(null)
 
-  const toggleCollapse = (categoryId: number) => {
+  const toggleCollapse = (categoryId: string) => {
     setCollapsed(prev => ({
       ...prev,
       [categoryId]: !prev[categoryId],
@@ -94,7 +94,7 @@ export const CategoryTree: React.FC<CategoryTreeProps> = ({
                 : {}
             }
           >
-            {category.title}
+            {category.name || category.title}
             {hasChildren && (
               <span className="ml-2 text-xs text-gray-500">
                 ({category.children.length})

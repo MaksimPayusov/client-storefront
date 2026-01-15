@@ -13,7 +13,7 @@ export function buildCategoryTree(
   }))
 
   // Создаём карту для быстрого доступа
-  const categoryMap = new Map<number, IGoodCategory>()
+  const categoryMap = new Map<string, IGoodCategory>()
   categoriesCopy.forEach(cat => categoryMap.set(cat.id, cat))
 
   // Собираем дерево
@@ -51,7 +51,7 @@ export function buildCategoryTree(
  */
 export function findCategoryInTree(
   tree: IGoodCategory[],
-  id: number
+  id: string
 ): IGoodCategory | undefined {
   for (const category of tree) {
     if (category.id === id) return category
@@ -69,7 +69,7 @@ export function findCategoryInTree(
  */
 export function getCategoryPath(
   tree: IGoodCategory[],
-  categoryId: number,
+  categoryId: string,
   allCategories: IGoodCategory[] // Добавляем параметр
 ): IGoodCategory[] {
   const category = findCategoryInTree(tree, categoryId)
@@ -78,9 +78,9 @@ export function getCategoryPath(
   const path: IGoodCategory[] = [category]
 
   // Рекурсивно находим родителей
-  function findParents(catId: number) {
+  function findParents(catId: string) {
     // Ищем родителя в дереве
-    let parentId: number | null = null
+    let parentId: string | null = null
 
     // Проверяем в плоском списке
     const cat = allCategories.find(c => c.id === catId)
@@ -106,7 +106,7 @@ export function getCategoryPath(
  */
 export function getAllChildCategories(
   tree: IGoodCategory[],
-  parentId: number
+  parentId: string
 ): IGoodCategory[] {
   const parent = findCategoryInTree(tree, parentId)
   if (!parent) return []
@@ -132,7 +132,7 @@ export function getAllChildCategories(
 export function getGoodsInCategoryAndChildren(
   goods: any[], // IGood[]
   categories: IGoodCategory[],
-  categoryId: number
+  categoryId: string
 ): any[] {
   const categoryTree = buildCategoryTree(categories)
   const childCategories = getAllChildCategories(categoryTree, categoryId)

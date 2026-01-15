@@ -6,16 +6,15 @@ import type { IGood, IGoodCategory } from '@/types';
  */
 /*
 export function getGoodById(id: string | number): IGood | undefined {
-  // Преобразуем id к числу, если нужно
-  const numId = typeof id === 'string' ? parseInt(id, 10) : id;
-  return mockGoods.find(good => good.id === numId);
+  const strId = id.toString();
+  return mockGoods.find(good => good.id === strId);
 }
 */
 
 /**
  * Получить товары по категории
  */
-export function getGoodsByCategory(categoryId: number): IGood[] {
+export function getGoodsByCategory(categoryId: string): IGood[] {
   return mockGoods.filter(good => good.categoryId === categoryId);
 }
 
@@ -23,8 +22,8 @@ export function getGoodsByCategory(categoryId: number): IGood[] {
  * Получить категорию по ID
  */
 export function getCategoryById(id: string | number): IGoodCategory | undefined {
-  const numId = typeof id === 'string' ? parseInt(id, 10) : id;
-  return mockCategories.find(cat => cat.id === numId);
+  const strId = id.toString();
+  return mockCategories.find(cat => cat.id === strId);
 }
 
 /**
@@ -37,7 +36,7 @@ export function getRootCategories(): IGoodCategory[] {
 /**
  * Получить дочерние категории
  */
-export function getChildCategories(parentId: number): IGoodCategory[] {
+export function getChildCategories(parentId: string): IGoodCategory[] {
   return mockCategories.filter(cat => cat.parentId === parentId);
 }
 
@@ -56,7 +55,7 @@ export function searchGoods(query: string): IGood[] {
  * Фильтрация товаров
  */
 export function filterGoods(options: {
-  categoryId?: number;
+  categoryId?: string;
   minPrice?: number;
   maxPrice?: number;
   brand?: string;

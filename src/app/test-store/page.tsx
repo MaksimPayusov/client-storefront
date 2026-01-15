@@ -56,9 +56,9 @@ export default function TestStorePage() {
   const [newShopDomain, setNewShopDomain] = useState(shop.domain)
 
   // Тест геттеров
-  const testCategory = getCategoryById(1)
-  const testGood = getGoodById(1)
-  const categoryGoods = getGoodsByCategory(1)
+  const testCategory = getCategoryById('1')
+  const testGood = getGoodById('1')
+  const categoryGoods = getGoodsByCategory('1')
 
   const handleSaveShopInfo = () => {
     setShop({
@@ -114,7 +114,7 @@ export default function TestStorePage() {
             <Input
               value={newShopDomain}
               onChange={(e) => setNewShopDomain(e.target.value)}
-              placeholder="fashion-store"
+              placeholder="fashionstore"
               className="mb-2"
               style={{
                 backgroundColor: theme.backgroundColor,

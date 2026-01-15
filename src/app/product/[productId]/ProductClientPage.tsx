@@ -1,21 +1,55 @@
 'use client'
 
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { notFound, useParams } from 'next/navigation'
 import Image from 'next/image'
 import ProductCard from '@/components/shared/ProductCard'
 import ProductInteractivePart from './ProductInteractivePart'
 import { useShopStore } from '@/store/shop.store'
 import { Truck, Shield, RefreshCw } from 'lucide-react'
+import { shopService } from '@/services/shop.service'
 
 export default function ProductClientPage() {
-  const params = useParams()
-  const productId = parseInt(params.productId as string)
+  const [mounted, setMounted] = useState(false)
 
-  const { getGoodById, goods } = useShopStore()
+  const params = useParams()
+  const productId = params.productId as string
+
+  const { getGoodById, goods, loadShop, isLoading } = useShopStore()
   const product = getGoodById(productId)
 
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    if (!mounted) return
+    if (product) return
+    if (isLoading) return
+
+    const domain = shopService.getShopDomainFromUrl()
+    loadShop(domain)
+  }, [mounted, product, isLoading, loadShop])
+
+  // На SSR и до монтирования не роняем страницу в 404,
+  // чтобы не получать серверный 404 из-за пустого zustand-store.
+  if (!mounted) {
+    return (
+      <div className="py-16 text-center text-gray-600">
+        Загружаем товар...
+      </div>
+    )
+  }
+
   if (!product) {
+    if (isLoading) {
+      return (
+        <div className="py-16 text-center text-gray-600">
+          Загружаем товар...
+        </div>
+      )
+    }
+
     notFound()
   }
 

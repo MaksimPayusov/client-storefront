@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
+import { cookies } from 'next/headers'
 import './globals.css'
 import { Layout } from '@/components/layout/Layout'
 import { ShopProvider } from '@/providers/ShopProvider'
@@ -14,12 +15,14 @@ export const metadata: Metadata = {
   description: 'Лучший выбор одежды по лучшим ценам',
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const shopDomain = process.env.NEXT_PUBLIC_SHOP_DOMAIN || 'fashion-store'
+  const cookieStore = await cookies()
+  const cookieShop = cookieStore.get('shop')?.value
+  const shopDomain = cookieShop || process.env.NEXT_PUBLIC_SHOP_DOMAIN || 'default'
 
   return (
     <html lang="ru" className="scroll-smooth">

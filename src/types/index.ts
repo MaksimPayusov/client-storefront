@@ -8,7 +8,7 @@ export interface IFavoriteItem {
 
 // ПОЛЬЗОВАТЕЛЬ
 export interface IUser {
-  id: string | number;
+  id: string;
   email: string;
   firstName: string;
   lastName: string;
@@ -51,10 +51,13 @@ export interface IConfirmPasswordRequest {
 // КАТЕГОРИИ ТОВАРОВ (из ТЗ API 5.2)
 
 export interface IGoodCategory {
-  id: number;
+  id: string;
   name: string;
   description: string;
   parentId: IGoodCategory['id'] | null;
+  shopId?: string;
+  imageUrl?: string;
+  isActive?: boolean;
   // Дополнительные поля для UI
   image?: string;
   slug?: string;
@@ -73,11 +76,18 @@ export interface IGoodCategoriesListResponse {
 // ТОВАРЫ (из ТЗ API 5.3 + админки)
 
 export interface IGood {
-  id: string | number;
+  id: string;
   name: string;
   description: string;
   price: number;
   categoryId: IGoodCategory['id'];
+  oldPrice?: number;
+  sku?: string;
+  stockQuantity?: number;
+  isActive?: boolean;
+  attributes?: Record<string, any>;
+  createdAt?: Date;
+  updatedAt?: Date;
   // Дополнительные поля из админки
   image?: string;
   images?: string[]; // Для галереи
@@ -98,7 +108,7 @@ export interface IGoodListResponse {
 // КОРЗИНА (из ТЗ API 5.7)
 
 export interface IBasketItem {
-  id: number | string;
+  id: string;
   goodId: IGood['id'];
   count: number;
   // Для отображения в UI можно добавить
@@ -197,22 +207,33 @@ export interface IShop {
 // НОВОСТИ/БЛОГ (из админки)
 
 export interface INews {
-  id: number;
+  id: string;
   title: string;
   content: string;
   image?: string;
+  imageUrl?: string;
   publishedAt?: Date | string; // ← Date ИЛИ string
   excerpt?: string;
+  author?: string;
+  isPublished?: boolean;
+  views?: number;
+  tags?: string[];
+  shopId?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 // БРЕНДЫ (из админки + расширение)
 
 export interface IBrand {
-  id: string | number;
+  id: string;
   name: string;
   description?: string;
   logo?: string;
+  logoUrl?: string;
   website?: string;
+  shopId?: string;
+  isActive?: boolean;
 }
 
 // РАЗМЕРЫ (из ТЗ модуля "Размеры")

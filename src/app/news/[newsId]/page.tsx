@@ -11,7 +11,7 @@ import { getSafeImageUrl } from '@/lib/utils';
 
 export default function NewsItemPage() {
   const params = useParams();
-  const newsId = parseInt(params.newsId as string);
+  const newsId = params.newsId as string;
 
   const { news } = useShopStore();
   const newsItem = news.find(item => item.id === newsId);

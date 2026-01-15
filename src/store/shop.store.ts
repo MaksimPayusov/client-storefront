@@ -8,6 +8,7 @@ import {
   getGoodsInCategoryAndChildren
 } from '@/lib/category-utils'
 import { getThemeByName, type ThemeName } from '@/lib/theme-utils'
+import { parseDesignCode } from '@/api/shops.api'
 import { shopService } from '@/services/shop.service'
 import { productService } from '@/services/products.service'
 import { newsService } from '@/services/news.service'
@@ -52,15 +53,15 @@ interface ShopState {
   clearError: () => void
 
   // Вспомогательные геттеры
-  getCategoryById: (id: number | string) => IGoodCategory | undefined
-  getGoodById: (id: number | string) => IGood | undefined
+  getCategoryById: (id: string) => IGoodCategory | undefined
+  getGoodById: (id: string) => IGood | undefined
 
   // Методы для работы с деревом категорий
   getCategoryTree: () => IGoodCategory[]
-  findCategory: (id: number | string) => IGoodCategory | undefined
-  getCategoryPath: (categoryId: number | string) => IGoodCategory[]
-  getChildCategories: (parentId: number | string | null) => IGoodCategory[]
-  getGoodsByCategory: (categoryId: number | string, includeChildren?: boolean) => IGood[]
+  findCategory: (id: string) => IGoodCategory | undefined
+  getCategoryPath: (categoryId: string) => IGoodCategory[]
+  getChildCategories: (parentId: string | null) => IGoodCategory[]
+  getGoodsByCategory: (categoryId: string, includeChildren?: boolean) => IGood[]
 }
 
 export const useShopStore = create<ShopState>()(
@@ -83,13 +84,46 @@ export const useShopStore = create<ShopState>()(
 
         try {
           // Определяем домен магазина
-          const domain = shopUrl || shopService.getShopDomainFromUrl()
+          let domain = shopUrl || shopService.getShopDomainFromUrl()
+
+          // На localhost при первом заходе без cookie/query домен может быть 'default'.
+          // В этом случае авто-выбираем самый свежий активный магазин.
+          if (typeof window !== 'undefined' && domain === 'default') {
+            try {
+              const shops = await shopService.getAllShops()
+              const active = (shops || [])
+                .filter((s: any) => s && (s.isActive !== false))
+                .sort((a: any, b: any) => {
+                  const aTime = new Date(a.createdAt || 0).getTime()
+                  const bTime = new Date(b.createdAt || 0).getTime()
+                  return bTime - aTime
+                })
+
+              const picked = active[0]
+              const pickedDomain = picked?.domain || picked?.url
+              if (pickedDomain) {
+                document.cookie = `shop=${encodeURIComponent(pickedDomain)}; path=/; max-age=${60 * 60 * 24 * 30}; samesite=lax`
+                domain = pickedDomain
+              }
+            } catch {
+              // ignore
+            }
+          }
 
           // Загружаем магазин с сервера
           const shopData = await shopService.getShopByUrl(domain)
 
+          const designCode = (shopData as any).designCode as string | undefined
+          if (designCode) {
+            const parsed = parseDesignCode(designCode)
+            const themeName = parsed?.theme as ThemeName | undefined
+            if (themeName) {
+              get().setThemeByName(themeName)
+            }
+          }
+
           const shop: IShop = {
-            id: String(parseInt(shopData.id) || Date.now()),
+            id: shopData.id,
             name: shopData.name,
             description: shopData.description,
             domain: shopData.domain,
@@ -119,125 +153,14 @@ export const useShopStore = create<ShopState>()(
         } catch (error: any) {
           console.error('Error loading shop:', error)
 
-          // Если API недоступен, используем mock данные для демонстрации
-          console.log('Using mock data as fallback')
-
-          const mockShop: IShop = {
-            id: '1',
-            name: 'Fashion Store',
-            domain: 'fashion-store',
-            description: 'Современная одежда для городских жителей',
-            logoUrl: '',
-            bannerUrl: '',
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            isActive: true,
+          set({
+            shop: null,
             categories: [],
+            goods: [],
             brands: [],
-          }
-
-          set({
-            shop: mockShop,
+            news: [],
             isLoading: false,
-            error: null
-          })
-
-          // Загружаем mock данные
-          const mockCategories: IGoodCategory[] = [
-            { id: 1, name: 'Женская одежда', description: 'Одежда для женщин', parentId: null },
-            { id: 2, name: 'Мужская одежда', description: 'Одежда для мужчин', parentId: null },
-          ]
-
-          const mockGoods: IGood[] = [
-            {
-              id: 1,
-              name: 'Черное платье',
-              description: 'Элегантное черное платье.',
-              price: 5499,
-              categoryId: 1,
-              image: '/images/products/dress.svg',
-              brand: 'Zara',
-              sizes: ['S', 'M', 'L'],
-              inStock: true,
-            },
-            {
-              id: 2,
-              name: 'Джинсы',
-              description: 'Классические джинсы.',
-              price: 3999,
-              categoryId: 2,
-              image: '/images/products/jeans.svg',
-              brand: 'Levi\'s',
-              sizes: ['S', 'M', 'L'],
-              inStock: true,
-            },
-          ]
-
-          const mockBrands: IBrand[] = [
-            { id: 1, name: 'Zara', description: 'Испанский бренд', logo: '' },
-            { id: 2, name: 'Levi\'s', description: 'Классические джинсы', logo: '' },
-          ]
-
-          const mockNews: INews[] = [
-            {
-              id: 1,
-              title: 'Новая коллекция',
-              content: 'Новая весенняя коллекция.',
-              excerpt: 'Откройте для себя свежие тренды',
-              image: 'https://images.unsplash.com/photo-1445205170230-053b83016050?w=800&h=400&fit=crop',
-              publishedAt: new Date(),
-            },
-          ]
-
-          set({
-            categories: mockCategories.map(cat => ({
-              id: cat.id,
-              name: cat.name,
-              description: cat.description,
-              parentId: cat.parentId,
-              shopId: 1,
-              imageUrl: '',
-              isActive: true,
-            })),
-            goods: mockGoods.map(product => ({
-              id: product.id,
-              name: product.name,
-              description: product.description,
-              price: product.price,
-              oldPrice: undefined,
-              images: product.image ? [product.image] : [],
-              categoryId: product.categoryId,
-              brandId: undefined,
-              sku: `SKU${product.id}`,
-              stockQuantity: 10,
-              isActive: true,
-              attributes: {},
-              createdAt: new Date(),
-              updatedAt: new Date(),
-            })),
-            brands: mockBrands.map(brand => ({
-              id: brand.id,
-              name: brand.name,
-              description: brand.description,
-              logoUrl: brand.logo || '',
-              shopId: 1,
-              isActive: true,
-            })),
-            news: mockNews.map(item => ({
-              id: item.id,
-              title: item.title,
-              content: item.content,
-              excerpt: item.excerpt,
-              imageUrl: item.image || '',
-              author: 'Admin',
-              isPublished: true,
-              publishedAt: item.publishedAt,
-              views: 0,
-              tags: [],
-              shopId: 1,
-              createdAt: new Date(),
-              updatedAt: new Date(),
-            })),
+            error: 'Не удалось загрузить магазин',
           })
         }
       },
@@ -247,11 +170,11 @@ export const useShopStore = create<ShopState>()(
           const categoriesData = await productService.getCategoriesByShop(shopId)
 
           const categories: IGoodCategory[] = categoriesData.map(cat => ({
-            id: parseInt(cat.id) || Date.now(),
-            name: cat.name,
-            description: cat.description || '',
-            parentId: cat.parentId ? parseInt(cat.parentId) : null,
-            shopId: parseInt(cat.shopId) || 1,
+            id: cat.id,
+            name: (cat.name || (cat as any).title || '') as string,
+            description: (cat.description || '') as string,
+            parentId: (cat.parentId || (cat as any).parentId || null) as any,
+            shopId: cat.shopId,
             imageUrl: cat.imageUrl || '',
             isActive: cat.isActive,
           }))
@@ -268,17 +191,41 @@ export const useShopStore = create<ShopState>()(
         try {
           const productsData = await productService.getProductsByShop(shopId)
 
+          const pickSizesFromAttributes = (attributes: any): string[] | undefined => {
+            if (!attributes) return undefined
+            const raw = attributes.sizes ?? attributes.size
+            if (!raw) return undefined
+            if (Array.isArray(raw)) {
+              const arr = raw.filter(Boolean).map(String)
+              return arr.length > 0 ? arr : undefined
+            }
+            if (typeof raw === 'string') {
+              const parts = raw
+                .split(/[;,]/g)
+                .map((s: string) => s.trim())
+                .filter(Boolean)
+              return parts.length > 0 ? parts : undefined
+            }
+            return undefined
+          }
+
           const goods: IGood[] = productsData.map(product => ({
-            id: parseInt(product.id) || Date.now(),
+            id: product.id,
             name: product.name,
             description: product.description,
             price: product.price,
             oldPrice: product.oldPrice,
             images: product.images || [],
-            categoryId: parseInt(product.categoryId) || 1,
-            brandId: product.brandId ? parseInt(product.brandId) : undefined,
+            image: (product.images && product.images.length > 0) ? product.images[0] : undefined,
+            categoryId: product.categoryId,
+            brandId: product.brandId || undefined,
+            brand: (product as any).brandName || undefined,
             sku: product.sku,
             stockQuantity: product.stockQuantity,
+            sizes: pickSizesFromAttributes(product.attributes),
+            inStock:
+              product.isActive !== false &&
+              (typeof product.stockQuantity === 'number' ? product.stockQuantity > 0 : true),
             isActive: product.isActive,
             attributes: product.attributes || {},
             createdAt: new Date(product.createdAt),
@@ -298,11 +245,11 @@ export const useShopStore = create<ShopState>()(
           const brandsData = await productService.getBrandsByShop(shopId)
 
           const brands: IBrand[] = brandsData.map(brand => ({
-            id: parseInt(brand.id) || Date.now(),
+            id: brand.id,
             name: brand.name,
             description: brand.description || '',
             logoUrl: brand.logoUrl || '',
-            shopId: parseInt(brand.shopId) || 1,
+            shopId: brand.shopId,
             isActive: brand.isActive,
           }))
 
@@ -320,17 +267,18 @@ export const useShopStore = create<ShopState>()(
           const newsData = await newsService.getNews(params)
 
           const news: INews[] = newsData.map(item => ({
-            id: parseInt(item.id) || Date.now(),
+            id: item.id,
             title: item.title,
             content: item.content,
             excerpt: item.excerpt || '',
-            imageUrl: item.imageUrl || '',
+            imageUrl: (item.imageUrl || (item as any).previewImageUrl || '') as string,
+            image: ((item.imageUrl || (item as any).previewImageUrl) ?? undefined) as any,
             author: item.author,
             isPublished: item.isPublished,
             publishedAt: item.publishedAt ? new Date(item.publishedAt) : new Date(),
             views: item.views,
             tags: item.tags,
-            shopId: item.shopId ? parseInt(item.shopId) : undefined,
+            shopId: item.shopId || undefined,
             createdAt: new Date(item.createdAt),
             updatedAt: new Date(item.updatedAt),
           }))
@@ -366,28 +314,24 @@ export const useShopStore = create<ShopState>()(
 
       // Вспомогательные геттеры
       getCategoryById: (id) => {
-        const numId = typeof id === 'string' ? parseInt(id, 10) : id
-        return get().categories.find((cat) => cat.id === numId)
+        return get().categories.find((cat) => cat.id === id)
       },
 
       getGoodById: (id) => {
-        const numId = typeof id === 'string' ? parseInt(id, 10) : id
-        return get().goods.find((good) => good.id === numId)
+        return get().goods.find((good) => good.id === id)
       },
 
       // Методы для работы с деревом категорий
       getCategoryTree: () => buildCategoryTree(get().categories),
 
       findCategory: (id) => {
-        const numId = typeof id === 'string' ? parseInt(id, 10) : id
-        return findCategoryInTree(buildCategoryTree(get().categories), numId)
+        return findCategoryInTree(buildCategoryTree(get().categories), id)
       },
 
       getCategoryPath: (categoryId) => {
         const categories = get().categories;
         const tree = buildCategoryTree(categories);
-        const numId = typeof categoryId === 'string' ? parseInt(categoryId, 10) : categoryId
-        return getCategoryPath(tree, numId, categories);
+        return getCategoryPath(tree, categoryId, categories);
       },
 
       getChildCategories: (parentId) => {
@@ -396,22 +340,50 @@ export const useShopStore = create<ShopState>()(
           return tree.filter(cat => cat.parentId === null)
         }
 
-        const numId = typeof parentId === 'string' ? parseInt(parentId, 10) : parentId
-        const parent = findCategoryInTree(tree, numId)
+        const parent = findCategoryInTree(tree, parentId)
         return parent?.children || []
       },
 
       getGoodsByCategory: (categoryId, includeChildren = false) => {
-        const numId = typeof categoryId === 'string' ? parseInt(categoryId, 10) : categoryId
-
         if (includeChildren) {
-          return getGoodsInCategoryAndChildren(get().goods, get().categories, numId)
+          return getGoodsInCategoryAndChildren(get().goods, get().categories, categoryId)
         }
-        return get().goods.filter(good => good.categoryId === numId)
+        return get().goods.filter(good => good.categoryId === categoryId)
       },
     }),
     {
       name: 'shop-storage',
+      version: 2,
+      migrate: (persistedState: any) => {
+        if (!persistedState || typeof persistedState !== 'object') return persistedState
+
+        const nextState = { ...persistedState }
+
+        // Нормализация домена магазина из старых версий
+        if (nextState.shop && typeof nextState.shop === 'object') {
+          const shop = { ...nextState.shop }
+
+          // legacy: domain could be stored with separators (e.g. dash), normalize it
+          if (typeof shop.domain === 'string') {
+            const normalized = shop.domain.replace(/[^a-z0-9]/gi, '')
+            if (normalized === 'fashionstore') {
+              shop.domain = 'fashionstore'
+            }
+          }
+
+          // legacy: some older shapes may keep url/shopUrl instead of domain
+          if (!shop.domain && shop.shopUrl) {
+            shop.domain = shop.shopUrl
+          }
+          if (!shop.name && shop.shopName) {
+            shop.name = shop.shopName
+          }
+
+          nextState.shop = shop
+        }
+
+        return nextState
+      },
       partialize: (state) => ({
         shop: state.shop,
         categories: state.categories,

@@ -2,7 +2,10 @@
  * Константы с путями API эндпоинтов
  */
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8081';
+const API_BASE =
+  typeof window === 'undefined'
+    ? (process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8081')
+    : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8081');
 
 export const API_PATHS = {
   // Аутентификация
@@ -33,6 +36,10 @@ export const API_PATHS = {
   // Бренды
   BRANDS: `${API_BASE}/api/brands`,
   BRANDS_BY_SHOP: `${API_BASE}/api/brands/shop/:shopId`,
+
+  // Размеры
+  SIZES: `${API_BASE}/api/sizes`,
+  PRODUCT_SIZES_BY_PRODUCT: `${API_BASE}/api/product-sizes/product/:productId`,
 
   // Корзина
   CART: `${API_BASE}/api/cart`,

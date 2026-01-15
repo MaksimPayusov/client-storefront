@@ -4,6 +4,18 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
       {
+        protocol: 'http',
+        hostname: 'localhost',
+        port: '9000',
+        pathname: '/**',
+      },
+      {
+        protocol: 'http',
+        hostname: '127.0.0.1',
+        port: '9000',
+        pathname: '/**',
+      },
+      {
         protocol: 'https',
         hostname: 'images.unsplash.com',
         pathname: '/**',
@@ -23,7 +35,7 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       },
     ],
-    unoptimized: process.env.NODE_ENV === 'development',
+    unoptimized: true,
   },
   output: 'standalone',
   experimental: {

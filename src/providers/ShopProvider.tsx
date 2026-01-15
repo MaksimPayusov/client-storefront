@@ -33,7 +33,31 @@ export const ShopProvider: React.FC<ShopProviderProps> = ({
     const initShop = async () => {
       try {
         // Определяем домен магазина
-        const domain = shopDomain || shopService.getShopDomainFromUrl()
+        let domain = shopService.getShopDomainFromUrl() || shopDomain || 'default'
+
+        // Авто-выбор магазина на localhost при первом заходе (нет cookie и query)
+        if (typeof window !== 'undefined') {
+          const hostname = window.location.hostname
+          const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1'
+
+          if (isLocalhost && domain === 'default') {
+            const shops = await shopService.getAllShops()
+            const active = shops
+              .filter((s: any) => s && (s.isActive !== false))
+              .sort((a: any, b: any) => {
+                const aTime = new Date(a.createdAt || 0).getTime()
+                const bTime = new Date(b.createdAt || 0).getTime()
+                return bTime - aTime
+              })
+
+            const picked = active[0]
+            const pickedDomain = picked?.domain || picked?.url
+            if (pickedDomain) {
+              document.cookie = `shop=${encodeURIComponent(pickedDomain)}; path=/; max-age=${60 * 60 * 24 * 30}; samesite=lax`
+              domain = pickedDomain
+            }
+          }
+        }
         console.log('Initializing shop with domain:', domain)
 
         // Загружаем магазин
@@ -111,6 +135,39 @@ export const ShopProvider: React.FC<ShopProviderProps> = ({
     }
   }, [shop?.domain, loadShop])
 
+  // Встраиваем тему магазина в стили
+  useEffect(() => {
+    if (shop && typeof window !== 'undefined') {
+      const style = document.createElement('style')
+      style.textContent = `
+        :root {
+          --shop-primary-color: ${shop.primaryColor || '#3b82f6'};
+          --shop-secondary-color: ${shop.secondaryColor || '#1e40af'};
+          --shop-background-color: ${shop.backgroundColor || '#f9fafb'};
+          --shop-text-color: ${shop.textColor || '#111827'};
+          --shop-accent-color: ${shop.accentColor || '#10b981'};
+        }
+
+        .shop-theme-primary {
+          color: var(--shop-primary-color);
+        }
+
+        .shop-theme-bg-primary {
+          background-color: var(--shop-primary-color);
+        }
+
+        .shop-theme-border-primary {
+          border-color: var(--shop-primary-color);
+        }
+      `
+      document.head.appendChild(style)
+
+      return () => {
+        document.head.removeChild(style)
+      }
+    }
+  }, [shop])
+
   // Показываем loading состояние
   if (isLoading && !initialized) {
     return (
@@ -165,39 +222,6 @@ export const ShopProvider: React.FC<ShopProviderProps> = ({
       </div>
     )
   }
-
-  // Встраиваем тему магазина в стили
-  useEffect(() => {
-    if (shop && typeof window !== 'undefined') {
-      const style = document.createElement('style')
-      style.textContent = `
-        :root {
-          --shop-primary-color: ${shop.primaryColor || '#3b82f6'};
-          --shop-secondary-color: ${shop.secondaryColor || '#1e40af'};
-          --shop-background-color: ${shop.backgroundColor || '#f9fafb'};
-          --shop-text-color: ${shop.textColor || '#111827'};
-          --shop-accent-color: ${shop.accentColor || '#10b981'};
-        }
-
-        .shop-theme-primary {
-          color: var(--shop-primary-color);
-        }
-
-        .shop-theme-bg-primary {
-          background-color: var(--shop-primary-color);
-        }
-
-        .shop-theme-border-primary {
-          border-color: var(--shop-primary-color);
-        }
-      `
-      document.head.appendChild(style)
-
-      return () => {
-        document.head.removeChild(style)
-      }
-    }
-  }, [shop])
 
   return <>{children}</>
 }

@@ -57,11 +57,15 @@ class NewsService {
     tag?: string;
     search?: string;
   }): Promise<NewsItem[]> {
-    const response = await apiClient.get<NewsItem[]>(
+    const response = await apiClient.get<any>(
       API_PATHS.NEWS,
       { params }
     );
-    return response.data;
+
+    const data = response.data;
+    if (Array.isArray(data)) return data as NewsItem[];
+    if (data && Array.isArray(data.content)) return data.content as NewsItem[];
+    return [];
   }
 
   /**

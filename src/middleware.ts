@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { apiClient } from '@/services/api'
 
 // Защищенные роуты
-const protectedRoutes = ['/account', '/checkout', '/checkout/success']
+const protectedRoutes = ['/account', '/checkout/success']
 const authRoutes = ['/auth/login', '/auth/register']
 
 export async function middleware(request: NextRequest) {
@@ -23,13 +22,9 @@ export async function middleware(request: NextRequest) {
     // Проверяем наличие токена в куках (для серверного рендеринга)
     token = request.cookies.get('auth_token')?.value
 
-    if (!token) {
-      // Проверяем наличие токена в localStorage через apiClient
-      isAuthenticated = apiClient.isTokenExpired() ? false : true
-    } else {
-      // Если есть токен в куках, проверяем его валидность
-      isAuthenticated = true
-    }
+    // В middleware нельзя полагаться на localStorage (он недоступен на сервере).
+    // Поэтому здесь считаем пользователя авторизованным только если токен пришёл в cookie.
+    isAuthenticated = Boolean(token)
   } catch (error) {
     console.error('Error checking auth:', error)
     isAuthenticated = false
@@ -88,7 +83,6 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     '/account/:path*',
-    '/checkout/:path*',
     '/auth/login',
     '/auth/register',
   ],

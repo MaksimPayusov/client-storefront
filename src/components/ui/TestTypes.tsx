@@ -4,25 +4,25 @@ import type { IGood, IGoodCategory, IBasketItem } from '@/types';
 const TestTypes: React.FC = () => {
   // Пример использования типов
   const testProduct: IGood = {
-    id: 1,
+    id: '1',
     name: 'Тестовый товар',
     description: 'Описание тестового товара',
     price: 2999,
-    categoryId: 1,
+    categoryId: '1',
     image: 'https://via.placeholder.com/300',
     sizes: ['S', 'M', 'L'],
   };
 
   const testCategory: IGoodCategory = {
-    id: 1,
+    id: '1',
     name: 'Одежда',
     description: 'Категория одежды',
     parentId: null,
   };
 
   const testBasketItem: IBasketItem = {
-    id: 1,
-    goodId: 1,
+    id: '1',
+    goodId: '1',
     count: 2,
   };
 

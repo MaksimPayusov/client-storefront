@@ -19,8 +19,13 @@ class ApiClient {
   private refreshPromise: Promise<string> | null = null;
 
   constructor() {
+    const baseURL =
+      typeof window === 'undefined'
+        ? (process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8081')
+        : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8081');
+
     this.client = axios.create({
-      baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8081',
+      baseURL,
       timeout: 10000,
       headers: {
         'Content-Type': 'application/json',
@@ -46,6 +51,13 @@ class ApiClient {
         const originalRequest = error.config;
 
         if (error.response?.status === 401 && !originalRequest._retry) {
+          // Если нет refresh_token — нечего обновлять, просто очищаем токены и отдаём ошибку наверх.
+          const refreshToken = this.getRefreshToken();
+          if (!refreshToken) {
+            this.clearTokens();
+            return Promise.reject(error);
+          }
+
           originalRequest._retry = true;
 
           try {
@@ -55,7 +67,6 @@ class ApiClient {
           } catch (refreshError) {
             // Очищаем токены при ошибке обновления
             this.clearTokens();
-            window.location.href = '/auth/login';
             return Promise.reject(refreshError);
           }
         }
@@ -103,6 +114,14 @@ class ApiClient {
     // Сохраняем время истечения токена
     const expiresAt = Date.now() + (tokenData.expires_in * 1000);
     localStorage.setItem('token_expires_at', expiresAt.toString());
+
+    try {
+      const encoded = encodeURIComponent(tokenData.access_token);
+      // cookie нужен для server-side middleware. httpOnly здесь поставить нельзя из JS.
+      document.cookie = `auth_token=${encoded}; path=/; max-age=${tokenData.expires_in}; samesite=lax`;
+    } catch {
+      // noop
+    }
   }
 
   // Очистка токенов
@@ -112,6 +131,12 @@ class ApiClient {
     localStorage.removeItem('token_data');
     localStorage.removeItem('token_expires_at');
     localStorage.removeItem('user_data');
+
+    try {
+      document.cookie = 'auth_token=; path=/; max-age=0; samesite=lax';
+    } catch {
+      // noop
+    }
   }
 
   // Обновление токена
@@ -131,8 +156,11 @@ class ApiClient {
         formData.append('client_id', process.env.NEXT_PUBLIC_KEYCLOAK_CLIENT_ID || 'auth');
         formData.append('refresh_token', refreshToken);
 
+        const keycloakUrl = process.env.NEXT_PUBLIC_KEYCLOAK_URL || 'http://localhost:8080';
+        const realm = process.env.NEXT_PUBLIC_KEYCLOAK_REALM || 'main_one';
+
         const response = await axios.post<TokenData>(
-          `${process.env.NEXT_PUBLIC_KEYCLOAK_URL}/realms/${process.env.NEXT_PUBLIC_KEYCLOAK_REALM}/protocol/openid-connect/token`,
+          `${keycloakUrl}/realms/${realm}/protocol/openid-connect/token`,
           formData.toString(),
           {
             headers: {
@@ -158,7 +186,7 @@ class ApiClient {
     const expiresAt = localStorage.getItem('token_expires_at');
     if (!expiresAt) return true;
 
-    return Date.now() >= parseInt(expiresAt, 10);
+    return Date.now() >= Number(expiresAt);
   }
 
   // Базовые методы HTTP

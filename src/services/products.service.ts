@@ -13,16 +13,46 @@ export interface Product {
   price: number;
   oldPrice?: number;
   sku: string;
-  stockQuantity: number;
+  stockQuantity?: number;
   isActive: boolean;
   categoryId: string;
   brandId?: string;
+  brandName?: string;
   shopId: string;
   images: string[];
   attributes: Record<string, any>;
   createdAt: string;
   updatedAt: string;
 }
+
+type BackendProduct = {
+  id: string;
+  shopId: string;
+  name: string;
+  description?: string | null;
+  price: number;
+  oldPrice?: number | null;
+  sku?: string | null;
+  stockQuantity?: number | null;
+  isActive?: boolean;
+  categoryId?: string | null;
+  brandId?: string | null;
+  images?: string[] | null;
+  imageUrls?: string[] | null;
+  attributes?: Record<string, any> | null;
+  createdAt?: string;
+  updatedAt?: string;
+  category?: { id: string } | null;
+  brand?: { id: string; name: string } | null;
+};
+
+const normalizeProductsPayload = (data: any): BackendProduct[] => {
+  if (!data) return [];
+  if (Array.isArray(data)) return data as BackendProduct[];
+  if (data && Array.isArray(data.value)) return data.value as BackendProduct[];
+  if (typeof data === 'object') return [data as BackendProduct];
+  return [];
+};
 
 export interface Category {
   id: string;
@@ -49,14 +79,13 @@ export interface Brand {
 export interface ProductSize {
   id: string;
   productId: string;
-  sizeId: string;
-  stockQuantity: number;
+  size: Size;
+  quantityAvailable: number;
 }
 
 export interface Size {
   id: string;
-  name: string;
-  description?: string;
+  value: string;
 }
 
 export interface CreateProductRequest {
@@ -107,6 +136,37 @@ class ProductService {
   // ========== ТОВАРЫ ==========
 
   /**
+   * Получение справочника размеров
+   */
+  async getSizes(): Promise<Size[]> {
+    const response = await apiClient.get<Size[]>(API_PATHS.SIZES);
+    return response.data;
+  }
+
+  /**
+   * Получение связок товар-размеры
+   */
+  async getProductSizesByProductId(productId: string): Promise<ProductSize[]> {
+    const response = await apiClient.get<ProductSize[]>(
+      buildPath(API_PATHS.PRODUCT_SIZES_BY_PRODUCT, { productId })
+    );
+    return response.data;
+  }
+
+  /**
+   * Получение размерайки как список имён (S/M/L) для конкретного товара
+   */
+  async getSizeNamesForProduct(productId: string): Promise<string[]> {
+    const productSizes = await this.getProductSizesByProductId(productId);
+    const values = (productSizes || [])
+      .map(ps => ps?.size?.value)
+      .filter((v): v is string => Boolean(v));
+
+    // unique, stable order
+    return Array.from(new Set(values));
+  }
+
+  /**
    * Получение товаров с фильтрацией
    */
   async getProducts(params?: {
@@ -143,10 +203,36 @@ class ProductService {
    * Получение товаров магазина
    */
   async getProductsByShop(shopId: string): Promise<Product[]> {
-    const response = await apiClient.get<Product[]>(
+    const response = await apiClient.get<any>(
       buildPath(API_PATHS.PRODUCTS_BY_SHOP, { shopId })
     );
-    return response.data;
+
+    const items = normalizeProductsPayload(response.data);
+
+    return items.map((p) => {
+      const images = (p.images ?? p.imageUrls ?? [])?.filter(Boolean) as string[];
+      const createdAt = p.createdAt || new Date().toISOString();
+      const updatedAt = p.updatedAt || createdAt;
+
+      return {
+        id: p.id,
+        shopId: p.shopId,
+        name: p.name,
+        description: (p.description ?? '') as string,
+        price: p.price,
+        oldPrice: (p.oldPrice ?? undefined) as number | undefined,
+        sku: (p.sku ?? `SKU${p.id}`) as string,
+        stockQuantity: (p.stockQuantity ?? undefined) as number | undefined,
+        isActive: p.isActive ?? true,
+        categoryId: (p.categoryId ?? p.category?.id ?? '') as string,
+        brandId: (p.brandId ?? p.brand?.id ?? undefined) as string | undefined,
+        brandName: (p.brand?.name ?? undefined) as string | undefined,
+        images,
+        attributes: (p.attributes ?? {}) as Record<string, any>,
+        createdAt,
+        updatedAt,
+      };
+    });
   }
 
   /**

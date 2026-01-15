@@ -2,6 +2,7 @@
  * Сервис для работы с аутентификацией через Keycloak
  */
 
+import axios from 'axios';
 import { apiClient } from './api';
 import { API_PATHS, buildPath } from '@/constants/api.endpoints';
 
@@ -58,18 +59,38 @@ class AuthService {
     const formData = new URLSearchParams();
     formData.append('grant_type', 'password');
     formData.append('client_id', process.env.NEXT_PUBLIC_KEYCLOAK_CLIENT_ID || 'auth');
+    formData.append('scope', 'openid');
     formData.append('username', credentials.username);
     formData.append('password', credentials.password);
 
-    const response = await apiClient.post<TokenResponse>(
-      API_PATHS.AUTH_LOGIN,
-      formData.toString(),
-      {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-      }
-    );
+    let response;
+    try {
+      response = await apiClient.post<TokenResponse>(
+        API_PATHS.AUTH_LOGIN,
+        formData.toString(),
+        {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+        }
+      );
+    } catch (error: any) {
+      const status = error?.response?.status;
+      if (status !== 400) throw error;
+
+      const keycloakUrl = process.env.NEXT_PUBLIC_KEYCLOAK_URL || 'http://localhost:8080';
+      const realm = process.env.NEXT_PUBLIC_KEYCLOAK_REALM || 'main_one';
+
+      response = await axios.post<TokenResponse>(
+        `${keycloakUrl}/realms/${realm}/protocol/openid-connect/token`,
+        formData.toString(),
+        {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+        }
+      );
+    }
 
     // Сохраняем токены
     apiClient.saveTokens(response.data);
@@ -95,14 +116,6 @@ class AuthService {
       }
     );
 
-    // Автоматически логиним пользователя после регистрации
-    if (response.data.id) {
-      await this.login({
-        username: data.email,
-        password: data.password,
-      });
-    }
-
     return response.data;
   }
 
@@ -117,14 +130,6 @@ class AuthService {
         role: 'owner',
       }
     );
-
-    // Автоматически логиним пользователя после регистрации
-    if (response.data.id) {
-      await this.login({
-        username: data.email,
-        password: data.password,
-      });
-    }
 
     return response.data;
   }

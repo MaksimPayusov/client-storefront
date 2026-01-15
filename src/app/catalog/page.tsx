@@ -21,7 +21,7 @@ export default function CatalogPage() {
   } = useShopStore()
   const { theme } = useTheme()
 
-  const [selectedCategory, setSelectedCategory] = useState<number | null>(null)
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [selectedBrands, setSelectedBrands] = useState<string[]>([])
   const [priceRange, setPriceRange] = useState([0, 20000])
   const [searchQuery, setSearchQuery] = useState('')
