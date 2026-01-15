@@ -364,19 +364,19 @@ export default function AccountPage() {
                         className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
                       >
                         <div>
-                          <h3 className="font-medium mb-1">Заказ #{order.orderNumber}</h3>
+                          <h3 className="font-medium mb-1">Заказ #{order.id}</h3>
                           <p className="text-sm text-gray-600">
                             {new Date(order.createdAt).toLocaleDateString('ru-RU')} • {order.items.length} товар{order.items.length > 1 ? 'а' : ''}
                           </p>
                         </div>
                         <div className="text-right">
-                          <div className="font-bold text-lg">{order.total.toLocaleString()} ₽</div>
+                          <div className="font-bold text-lg">{order.totalAmount.toLocaleString()} ₽</div>
                           <div className="text-xs text-gray-500 capitalize">
-                            {order.status === 'PENDING' && 'Ожидает'}
-                            {order.status === 'PROCESSING' && 'В обработке'}
+                            {order.status === 'NEW' && 'Новый'}
+                            {order.status === 'PAID' && 'Оплачен'}
                             {order.status === 'SHIPPED' && 'Отправлен'}
-                            {order.status === 'DELIVERED' && 'Доставлен'}
-                            {order.status === 'CANCELLED' && 'Отменен'}
+                            {order.status === 'COMPLETED' && 'Завершен'}
+                            {order.status === 'CANCELED' && 'Отменен'}
                           </div>
                         </div>
                       </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -36,6 +36,7 @@ export default function CheckoutPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [selectedPickupPoint, setSelectedPickupPoint] = useState<any>(null);
+  const selectedDeliveryMethod = deliveryMethods.find((method) => method.id.toString() === selectedDelivery);
 
   // Получаем товары из корзины
   const cartProducts = cartItems.map(item => {
@@ -56,6 +57,18 @@ export default function CheckoutPage() {
 
   const deliveryMethod = deliveryMethods.find(d => d.id.toString() === selectedDelivery);
   const paymentMethod = paymentMethods.find(p => p.id.toString() === selectedPayment);
+
+  useEffect(() => {
+    if (deliveryMethods.length && !selectedDeliveryMethod) {
+      setSelectedDelivery(deliveryMethods[0].id.toString());
+    }
+  }, [deliveryMethods, selectedDeliveryMethod]);
+
+  useEffect(() => {
+    if (paymentMethods.length && !paymentMethod) {
+      setSelectedPayment(paymentMethods[0].id.toString());
+    }
+  }, [paymentMethods, paymentMethod]);
   const deliveryPrice = deliveryMethod?.price || 0;
   const total = subtotal + deliveryPrice;
 
@@ -331,7 +344,9 @@ export default function CheckoutPage() {
             </div>
 
             {/* Виджет Яндекс.Доставки для выбора ПВЗ */}
-            {selectedDelivery && (
+            {(selectedDeliveryMethod?.id === 'yandex' ||
+              selectedDeliveryMethod?.name?.toLowerCase().includes('yandex') ||
+              selectedDeliveryMethod?.name?.toLowerCase().includes('яндекс')) && (
               <div className="mt-6">
                 <h3 className="font-semibold mb-4">Выберите пункт выдачи на карте:</h3>
                 <YandexDeliveryWidget

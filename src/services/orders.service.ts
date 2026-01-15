@@ -2,6 +2,7 @@
  * Сервис для работы с заказами
  */
 
+import axios from 'axios';
 import { apiClient } from './api';
 import { API_PATHS, buildPath } from '@/constants/api.endpoints';
 
@@ -181,8 +182,9 @@ class OrderService {
     orderId?: string;
     returnUrl?: string;
   }): Promise<YooKassaPaymentResponse> {
-    const response = await apiClient.post<YooKassaPaymentResponse>(
-      `${API_PATHS.PAYMENT_METHODS}/yookassa/create-payment`,
+    const paymentBaseUrl = process.env.NEXT_PUBLIC_PAYMENT_URL || 'http://localhost:8087';
+    const response = await axios.post<YooKassaPaymentResponse>(
+      `${paymentBaseUrl}/api/payment-methods/yookassa/create-payment`,
       null,
       { params }
     );

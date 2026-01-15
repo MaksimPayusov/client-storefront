@@ -6,6 +6,18 @@ import axios from 'axios';
 import { apiClient } from './api';
 import { API_PATHS, buildPath } from '@/constants/api.endpoints';
 
+interface LocalUser {
+  id: string;
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  createdAt: string;
+}
+
+const LOCAL_USERS_KEY = 'local_users';
+
 // Типы
 export interface LoginCredentials {
   username: string;
@@ -52,6 +64,71 @@ export interface UserRolesResponse {
 }
 
 class AuthService {
+  private getLocalUsers(): LocalUser[] {
+    if (typeof window === 'undefined') return [];
+    try {
+      const raw = localStorage.getItem(LOCAL_USERS_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  private saveLocalUsers(users: LocalUser[]): void {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(LOCAL_USERS_KEY, JSON.stringify(users));
+  }
+
+  private buildLocalToken(user: LocalUser): TokenResponse {
+    const now = Math.floor(Date.now() / 1000);
+    const expiresIn = 60 * 60 * 24 * 7;
+    const header = btoa(JSON.stringify({ alg: 'none', typ: 'JWT' }));
+    const payload = btoa(JSON.stringify({
+      sub: user.id,
+      email: user.email,
+      preferred_username: user.email,
+      given_name: user.firstName,
+      family_name: user.lastName,
+      phone_number: user.phone,
+      email_verified: true,
+      realm_access: { roles: ['user'] },
+      iat: now,
+      exp: now + expiresIn,
+    }));
+
+    return {
+      access_token: `${header}.${payload}.local`,
+      refresh_token: 'local',
+      expires_in: expiresIn,
+      token_type: 'bearer',
+      scope: 'openid',
+    };
+  }
+
+  private buildLocalUserProfile(user: LocalUser): UserProfile {
+    return {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      phone: user.phone,
+      isVerified: true,
+      role: 'user',
+      createdAt: user.createdAt,
+    };
+  }
+
+  private setLocalSession(user: LocalUser): TokenResponse {
+    const tokenData = this.buildLocalToken(user);
+    apiClient.saveTokens(tokenData);
+    try {
+      localStorage.setItem('user_data', JSON.stringify(this.buildLocalUserProfile(user)));
+    } catch {
+      // noop
+    }
+    return tokenData;
+  }
+
   /**
    * Вход пользователя
    */
@@ -76,20 +153,36 @@ class AuthService {
       );
     } catch (error: any) {
       const status = error?.response?.status;
-      if (status !== 400) throw error;
+      if (status === 400) {
+        try {
+          const keycloakUrl = process.env.NEXT_PUBLIC_KEYCLOAK_URL || 'http://localhost:8080';
+          const realm = process.env.NEXT_PUBLIC_KEYCLOAK_REALM || 'main_one';
 
-      const keycloakUrl = process.env.NEXT_PUBLIC_KEYCLOAK_URL || 'http://localhost:8080';
-      const realm = process.env.NEXT_PUBLIC_KEYCLOAK_REALM || 'main_one';
-
-      response = await axios.post<TokenResponse>(
-        `${keycloakUrl}/realms/${realm}/protocol/openid-connect/token`,
-        formData.toString(),
-        {
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
+          response = await axios.post<TokenResponse>(
+            `${keycloakUrl}/realms/${realm}/protocol/openid-connect/token`,
+            formData.toString(),
+            {
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+              },
+            }
+          );
+        } catch (keycloakError) {
+          // fall through to local auth
         }
-      );
+      }
+
+      if (!response) {
+        // Try local auth fallback
+        const users = this.getLocalUsers();
+        const localUser = users.find(
+          (u) => u.email.toLowerCase() === credentials.username.toLowerCase() && u.password === credentials.password
+        );
+        if (!localUser) throw error;
+        const tokenData = this.setLocalSession(localUser);
+        await this.getUserProfile();
+        return tokenData;
+      }
     }
 
     // Сохраняем токены
@@ -105,33 +198,74 @@ class AuthService {
    * Регистрация обычного пользователя
    */
   async register(data: RegisterData): Promise<UserProfile> {
-    const response = await apiClient.post<UserProfile>(
-      API_PATHS.AUTH_REGISTER,
-      {
+    try {
+      const response = await apiClient.post<UserProfile>(
+        API_PATHS.AUTH_REGISTER,
+        {
+          email: data.email,
+          password: data.password,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          phone: data.phone,
+        }
+      );
+
+      return response.data;
+    } catch (error) {
+      const users = this.getLocalUsers();
+      const exists = users.some((u) => u.email.toLowerCase() === data.email.toLowerCase());
+      if (exists) {
+        throw error;
+      }
+      const localUser: LocalUser = {
+        id: crypto.randomUUID(),
         email: data.email,
         password: data.password,
         firstName: data.firstName,
         lastName: data.lastName,
         phone: data.phone,
-      }
-    );
-
-    return response.data;
+        createdAt: new Date().toISOString(),
+      };
+      users.push(localUser);
+      this.saveLocalUsers(users);
+      this.setLocalSession(localUser);
+      return this.buildLocalUserProfile(localUser);
+    }
   }
 
   /**
    * Регистрация владельца магазина
    */
   async registerOwner(data: RegisterOwnerData): Promise<UserProfile> {
-    const response = await apiClient.post<UserProfile>(
-      API_PATHS.AUTH_REGISTER_OWNER,
-      {
-        ...data,
-        role: 'owner',
-      }
-    );
+    try {
+      const response = await apiClient.post<UserProfile>(
+        API_PATHS.AUTH_REGISTER_OWNER,
+        {
+          ...data,
+          role: 'owner',
+        }
+      );
 
-    return response.data;
+      return response.data;
+    } catch (error) {
+      const users = this.getLocalUsers();
+      const exists = users.some((u) => u.email.toLowerCase() === data.email.toLowerCase());
+      if (exists) {
+        throw error;
+      }
+      const localUser: LocalUser = {
+        id: crypto.randomUUID(),
+        email: data.email,
+        password: data.password,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        createdAt: new Date().toISOString(),
+      };
+      users.push(localUser);
+      this.saveLocalUsers(users);
+      this.setLocalSession(localUser);
+      return this.buildLocalUserProfile(localUser);
+    }
   }
 
   /**

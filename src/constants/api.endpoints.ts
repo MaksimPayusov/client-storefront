@@ -64,6 +64,9 @@ export const API_PATHS = {
   FILES_UPLOAD: `${API_BASE}/api/files/upload`,
   FILES_UPLOAD_CATEGORY: `${API_BASE}/api/files/upload/:category`,
   FILES_DOWNLOAD: `${API_BASE}/api/files/download/:fileName`,
+
+  // Получатели адресов
+  USERS_ME_RECIPIENTS: `${API_BASE}/api/users/me/recipients`,
 } as const;
 
 // Вспомогательные функции для подстановки параметров

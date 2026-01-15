@@ -38,6 +38,32 @@ export interface PaymentMethod {
   isActive: boolean
 }
 
+const defaultDeliveryMethods: DeliveryMethod[] = [
+  {
+    id: 'yandex',
+    name: 'Яндекс.Доставка',
+    description: 'Пункт выдачи или курьер Яндекс',
+    price: 0,
+    estimatedDays: 1,
+    isActive: true,
+  },
+];
+
+const defaultPaymentMethods: PaymentMethod[] = [
+  {
+    id: 'cash',
+    name: 'Наличные',
+    description: 'Оплата при получении',
+    isActive: true,
+  },
+  {
+    id: 'yookassa',
+    name: 'YooKassa',
+    description: 'Оплата картой онлайн',
+    isActive: true,
+  },
+];
+
 export interface YandexDeliverySelection {
   pickupPointId?: string
   pickupPointAddress?: string
@@ -132,8 +158,8 @@ export const useOrderStore = create<OrderState>()(
       currentOrder: null,
       isLoading: false,
       error: null,
-      deliveryMethods: [],
-      paymentMethods: [],
+      deliveryMethods: defaultDeliveryMethods,
+      paymentMethods: defaultPaymentMethods,
       shippingAddress: null,
 
       loadOrders: async () => {
@@ -238,20 +264,27 @@ export const useOrderStore = create<OrderState>()(
       loadDeliveryMethods: async () => {
         try {
           const methods = await orderService.getDeliveryMethods()
-          set({ deliveryMethods: methods })
+          const filtered = methods.filter((method) =>
+            method.name?.toLowerCase().includes('yandex') || method.id === 'yandex'
+          )
+          set({ deliveryMethods: filtered.length ? filtered : defaultDeliveryMethods })
         } catch (error) {
           console.error('Error loading delivery methods:', error)
-          set({ deliveryMethods: [] })
+          set({ deliveryMethods: defaultDeliveryMethods })
         }
       },
 
       loadPaymentMethods: async () => {
         try {
           const methods = await orderService.getPaymentMethods()
-          set({ paymentMethods: methods })
+          const filtered = methods.filter((method) => {
+            const name = method.name?.toLowerCase() || '';
+            return method.id === 'cash' || method.id === 'yookassa' || name.includes('налич') || name.includes('yookassa');
+          })
+          set({ paymentMethods: filtered.length ? filtered : defaultPaymentMethods })
         } catch (error) {
           console.error('Error loading payment methods:', error)
-          set({ paymentMethods: [] })
+          set({ paymentMethods: defaultPaymentMethods })
         }
       },
 
@@ -318,12 +351,21 @@ export const useOrderStore = create<OrderState>()(
     }),
     {
       name: 'order-storage',
+      version: 2,
       partialize: (state) => ({
         orders: state.orders,
         deliveryMethods: state.deliveryMethods,
         paymentMethods: state.paymentMethods,
         shippingAddress: state.shippingAddress,
       }),
+      migrate: (persisted) => {
+        const state = persisted as OrderState;
+        return {
+          ...state,
+          deliveryMethods: defaultDeliveryMethods,
+          paymentMethods: defaultPaymentMethods,
+        };
+      },
     }
   )
 )
