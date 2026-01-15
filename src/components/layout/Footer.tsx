@@ -18,6 +18,7 @@ const Footer = () => {
     ],
     Помощь: [
       { label: 'О нас', href: '/about' },
+      { label: 'Тест доставки', href: '/yandex-delivery-test' },
     ],
   }
 

@@ -27,10 +27,10 @@ export const YandexDeliveryWidget: React.FC<YandexDeliveryWidgetProps> = ({
   className = '',
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [isLoaded, setIsLoaded] = useState(false);
   const [selectedPoint, setSelectedPoint] = useState<any>(null);
   const [config, setConfig] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const hasInitializedRef = useRef(false);
 
   useEffect(() => {
     // Загружаем конфигурацию из бэкенда
@@ -50,10 +50,61 @@ export const YandexDeliveryWidget: React.FC<YandexDeliveryWidgetProps> = ({
   useEffect(() => {
     if (!config) return;
 
+    const startWidget = () => {
+      if (!window.YaDelivery || !containerRef.current) {
+        return;
+      }
+
+      if (hasInitializedRef.current) {
+        return;
+      }
+      hasInitializedRef.current = true;
+
+      window.YaDelivery.createWidget({
+        containerId: containerRef.current.id,
+        params: {
+          city: city,
+          size: {
+            height: '450px',
+            width: '100%',
+          },
+          source_platform_station: sourcePlatformStation || config.sourcePlatformStation,
+          physical_dims_weight_gross: weight || config.defaultWeight,
+          delivery_price: (price: number) => price + ' руб',
+          delivery_term: 3,
+          show_select_button: true,
+          filter: {
+            type: [
+              'pickup_point', // Пункт выдачи заказа
+              'terminal', // Постамат
+            ],
+            is_yandex_branded: false,
+            payment_methods: [
+              'already_paid', // Доступен для доставки предоплаченных заказов
+              'card_on_receipt', // Доступна оплата картой при получении
+            ],
+            payment_methods_filter: 'or',
+          },
+          // Коллбэк при выборе точки
+          onSelectPoint: (point: any) => {
+            console.log('Selected delivery point:', point);
+            setSelectedPoint(point);
+            if (onSelectPoint) {
+              onSelectPoint(point);
+            }
+          },
+        },
+      });
+    };
+
     // Загружаем скрипт виджета Яндекс.Доставки
     const loadScript = () => {
       if (document.getElementById('yandex-delivery-script')) {
-        initWidget();
+        if (window.YaDelivery) {
+          startWidget();
+        } else {
+          document.addEventListener('YaNddWidgetLoad', startWidget);
+        }
         return;
       }
 
@@ -62,8 +113,7 @@ export const YandexDeliveryWidget: React.FC<YandexDeliveryWidgetProps> = ({
       script.src = 'https://yastatic.net/s3/taxi-delivery-front/widget/v1.0.0/widget.js';
       script.async = true;
       script.onload = () => {
-        setIsLoaded(true);
-        initWidget();
+        startWidget();
       };
       script.onerror = () => {
         console.error('Не удалось загрузить скрипт Яндекс.Доставки');
@@ -72,61 +122,11 @@ export const YandexDeliveryWidget: React.FC<YandexDeliveryWidgetProps> = ({
       document.body.appendChild(script);
     };
 
-    const initWidget = () => {
-      const startWidget = () => {
-        if (!window.YaDelivery || !containerRef.current) {
-          return;
-        }
-
-        window.YaDelivery.createWidget({
-          containerId: containerRef.current.id,
-          params: {
-            city: city,
-            size: {
-              height: '450px',
-              width: '100%',
-            },
-            source_platform_station: sourcePlatformStation || config.sourcePlatformStation,
-            physical_dims_weight_gross: weight || config.defaultWeight,
-            delivery_price: (price: number) => price + ' руб',
-            delivery_term: 3,
-            show_select_button: true,
-            filter: {
-              type: [
-                'pickup_point', // Пункт выдачи заказа
-                'terminal', // Постамат
-              ],
-              is_yandex_branded: false,
-              payment_methods: [
-                'already_paid', // Доступен для доставки предоплаченных заказов
-                'card_on_receipt', // Доступна оплата картой при получении
-              ],
-              payment_methods_filter: 'or',
-            },
-            // Коллбэк при выборе точки
-            onSelectPoint: (point: any) => {
-              console.log('Selected delivery point:', point);
-              setSelectedPoint(point);
-              if (onSelectPoint) {
-                onSelectPoint(point);
-              }
-            },
-          },
-        });
-      };
-
-      if (window.YaDelivery) {
-        startWidget();
-      } else {
-        document.addEventListener('YaNddWidgetLoad', startWidget);
-      }
-    };
-
     loadScript();
 
     return () => {
       // Очистка при размонтировании
-      document.removeEventListener('YaNddWidgetLoad', () => {});
+      document.removeEventListener('YaNddWidgetLoad', startWidget);
     };
   }, [city, sourcePlatformStation, weight, onSelectPoint, config]);
 

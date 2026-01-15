@@ -211,6 +211,7 @@ export const useShopStore = create<ShopState>()(
 
           const goods: IGood[] = productsData.map(product => ({
             id: product.id,
+            shopId: product.shopId,
             name: product.name,
             description: product.description,
             price: product.price,

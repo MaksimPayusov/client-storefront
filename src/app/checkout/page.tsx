@@ -9,12 +9,15 @@ import { useOrderStore } from '@/store/order.store';
 import { useShopStore } from '@/store/shop.store';
 import { useCartStore } from '@/store/cart.store';
 import { YandexDeliveryWidget } from '@/components/delivery/YandexDeliveryWidget';
+import { useAuthStore } from '@/store/auth.store';
+import { orderService } from '@/services/orders.service';
 import Link from 'next/link';
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { goods } = useShopStore();
+  const { goods, shop } = useShopStore();
   const { deliveryMethods, paymentMethods, createOrder } = useOrderStore();
+  const { user } = useAuthStore();
 
   const { items: cartItems, clearCart } = useCartStore();
 
@@ -52,6 +55,7 @@ export default function CheckoutPage() {
   );
 
   const deliveryMethod = deliveryMethods.find(d => d.id.toString() === selectedDelivery);
+  const paymentMethod = paymentMethods.find(p => p.id.toString() === selectedPayment);
   const deliveryPrice = deliveryMethod?.price || 0;
   const total = subtotal + deliveryPrice;
 
@@ -91,32 +95,75 @@ export default function CheckoutPage() {
     setIsSubmitting(true);
 
     try {
+      if (!user?.id) {
+        alert('Для оформления заказа необходимо войти в аккаунт');
+        return;
+      }
+
+      if (!shop?.id) {
+        alert('Не удалось определить магазин для заказа');
+        return;
+      }
+
       // Создаем заказ
       const order = await createOrder({
-        shopId: 'default-shop', // TODO: get from context
+        recipientId: user.id,
         items: cartProducts.map(item => ({
           productId: item.productId,
+          shopId: item.product?.shopId || shop.id,
           quantity: item.quantity,
-          size: item.size,
-          color: item.color,
+          pricePerItem: item.price,
         })),
-        shippingAddress: {
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          phone: formData.phone,
-          email: formData.email,
-          country: 'Russia', // TODO: add to form
-          city: selectedPickupPoint?.city || formData.address.split(',')[0]?.trim() || 'Unknown',
-          street: selectedPickupPoint?.address || formData.address,
-          postalCode: selectedPickupPoint?.postalCode || '000000',
-        },
         deliveryMethodId: selectedDelivery.toString(),
         paymentMethodId: selectedPayment.toString(),
-        notes: formData.comment + 
-          (selectedPickupPoint ? `\n\nПункт выдачи: ${selectedPickupPoint.address}\nID ПВЗ: ${selectedPickupPoint.id || 'N/A'}` : ''),
+        yandexDelivery: selectedPickupPoint
+          ? {
+              pickupPointId: selectedPickupPoint.id,
+              pickupPointAddress: selectedPickupPoint.address,
+              pickupPointName: selectedPickupPoint.name,
+              latitude: selectedPickupPoint.latitude,
+              longitude: selectedPickupPoint.longitude,
+              deliveryPrice: selectedPickupPoint.price,
+              deliveryTerm: selectedPickupPoint.deliveryTerm,
+              pickupPointType: selectedPickupPoint.type,
+              workSchedule: selectedPickupPoint.schedule,
+              phone: selectedPickupPoint.phone,
+            }
+          : undefined,
       });
 
       clearCart();
+
+      // Если выбрана онлайн-оплата — создаем платеж YooKassa и редиректим на оплату
+      const paymentName = paymentMethod?.name?.toLowerCase() || '';
+      const isOnlinePayment =
+        paymentName.includes('online') ||
+        paymentName.includes('card') ||
+        paymentName.includes('yookassa');
+
+      if (isOnlinePayment) {
+        const amountValue = typeof (order as any).totalAmount === 'number'
+          ? (order as any).totalAmount
+          : total;
+        const amount = amountValue.toFixed(2);
+        const returnUrl = `${window.location.origin}/checkout/success?orderId=${order.id}`;
+
+        const paymentResponse = await orderService.createYooKassaPayment({
+          amount,
+          currency: 'RUB',
+          description: `Оплата заказа ${order.id}`,
+          orderId: order.id,
+          returnUrl,
+        });
+
+        const confirmationUrl =
+          paymentResponse?.confirmation?.confirmationUrl ||
+          paymentResponse?.confirmation?.confirmation_url;
+        if (confirmationUrl) {
+          window.location.href = confirmationUrl;
+          return;
+        }
+      }
 
       // Редирект на страницу успеха
       router.push(`/checkout/success?orderId=${order.id}`);
@@ -289,8 +336,6 @@ export default function CheckoutPage() {
                 <h3 className="font-semibold mb-4">Выберите пункт выдачи на карте:</h3>
                 <YandexDeliveryWidget
                   city={formData.address.split(',')[0]?.trim() || 'Москва'}
-                  sourcePlatformStation="05e809bb-4521-42d9-a936-0fb0744c0fb3"
-                  weight={10000}
                   onSelectPoint={(point) => {
                     console.log('Выбран пункт выдачи:', point);
                     setSelectedPickupPoint(point);

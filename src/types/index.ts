@@ -77,6 +77,7 @@ export interface IGoodCategoriesListResponse {
 
 export interface IGood {
   id: string;
+  shopId?: string;
   name: string;
   description: string;
   price: number;

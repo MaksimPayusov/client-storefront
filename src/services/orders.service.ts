@@ -8,12 +8,9 @@ import { API_PATHS, buildPath } from '@/constants/api.endpoints';
 // Типы
 export interface OrderItem {
   productId: string;
-  name: string;
-  price: number;
+  shopId: string;
   quantity: number;
-  size?: string;
-  color?: string;
-  imageUrl?: string;
+  pricePerItem: number;
 }
 
 export interface DeliveryMethod {
@@ -44,40 +41,74 @@ export interface ShippingAddress {
   postalCode: string;
 }
 
+export interface YandexDeliverySelection {
+  pickupPointId?: string;
+  pickupPointAddress?: string;
+  pickupPointName?: string;
+  latitude?: number;
+  longitude?: number;
+  deliveryPrice?: number;
+  deliveryTerm?: number;
+  pickupPointType?: string;
+  workSchedule?: string;
+  phone?: string;
+}
+
 export interface Order {
   id: string;
-  orderNumber: string;
   userId: string;
-  shopId: string;
+  recipientId: string;
   items: OrderItem[];
-  subtotal: number;
-  shippingCost: number;
-  tax: number;
-  total: number;
-  currency: string;
-  status: 'PENDING' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED' | 'REFUNDED';
-  shippingAddress: ShippingAddress;
+  status: 'NEW' | 'PAID' | 'SHIPPED' | 'COMPLETED' | 'CANCELED';
   deliveryMethod: DeliveryMethod;
   paymentMethod: PaymentMethod;
-  notes?: string;
+  totalAmount: number;
   createdAt: string;
-  updatedAt: string;
-  estimatedDelivery?: string;
-  trackingNumber?: string;
+  yandexPickupPointId?: string;
+  yandexPickupPointAddress?: string;
+  yandexPickupPointName?: string;
+  yandexLatitude?: number;
+  yandexLongitude?: number;
+  yandexDeliveryPrice?: number;
+  yandexDeliveryTerm?: number;
+  yandexPickupPointType?: string;
+  yandexWorkSchedule?: string;
+  yandexPhone?: string;
 }
 
 export interface CreateOrderRequest {
-  shopId: string;
+  recipientId: string;
   items: Array<{
     productId: string;
+    shopId: string;
     quantity: number;
-    size?: string;
-    color?: string;
+    pricePerItem: number;
   }>;
-  shippingAddress: ShippingAddress;
   deliveryMethodId: string;
   paymentMethodId: string;
-  notes?: string;
+  yandexDelivery?: YandexDeliverySelection;
+}
+
+export interface YooKassaPaymentResponse {
+  id: string;
+  status: string;
+  amount?: {
+    value: string;
+    currency: string;
+  };
+  confirmation?: {
+    type?: string;
+    confirmationUrl?: string;
+    confirmation_url?: string;
+    confirmationToken?: string;
+    confirmation_token?: string;
+  };
+  createdAt?: string;
+  description?: string;
+  test?: boolean;
+  paid?: boolean;
+  refundable?: boolean;
+  metadata?: any;
 }
 
 export interface UpdateOrderStatusRequest {
@@ -87,13 +118,28 @@ export interface UpdateOrderStatusRequest {
 }
 
 class OrderService {
+  private getUserIdHeader(): { 'X-User-Id'?: string } {
+    if (typeof window === 'undefined') return {};
+    try {
+      const raw = localStorage.getItem('auth-storage');
+      if (!raw) return {};
+      const parsed = JSON.parse(raw);
+      const userId = parsed?.state?.user?.id;
+      if (!userId) return {};
+      return { 'X-User-Id': userId };
+    } catch {
+      return {};
+    }
+  }
+
   /**
    * Создание заказа
    */
   async createOrder(data: CreateOrderRequest): Promise<Order> {
     const response = await apiClient.post<Order>(
       API_PATHS.ORDERS,
-      data
+      data,
+      { headers: this.getUserIdHeader() }
     );
     return response.data;
   }
@@ -109,7 +155,7 @@ class OrderService {
   }): Promise<Order[]> {
     const response = await apiClient.get<Order[]>(
       API_PATHS.ORDERS,
-      { params }
+      { params, headers: this.getUserIdHeader() }
     );
     return response.data;
   }
@@ -119,7 +165,26 @@ class OrderService {
    */
   async getOrderById(orderId: string): Promise<Order> {
     const response = await apiClient.get<Order>(
-      buildPath(API_PATHS.ORDER_BY_ID, { orderId })
+      buildPath(API_PATHS.ORDER_BY_ID, { orderId }),
+      { headers: this.getUserIdHeader() }
+    );
+    return response.data;
+  }
+
+  /**
+   * Создание платежа YooKassa
+   */
+  async createYooKassaPayment(params: {
+    amount: string;
+    currency?: string;
+    description: string;
+    orderId?: string;
+    returnUrl?: string;
+  }): Promise<YooKassaPaymentResponse> {
+    const response = await apiClient.post<YooKassaPaymentResponse>(
+      `${API_PATHS.PAYMENT_METHODS}/yookassa/create-payment`,
+      null,
+      { params }
     );
     return response.data;
   }
@@ -160,7 +225,7 @@ class OrderService {
    */
   async cancelOrder(orderId: string): Promise<Order> {
     return this.updateOrderStatus(orderId, {
-      status: 'CANCELLED',
+      status: 'CANCELED',
     });
   }
 
@@ -194,7 +259,7 @@ class OrderService {
   /**
    * Расчет стоимости заказа
    */
-  async calculateOrderTotal(request: Omit<CreateOrderRequest, 'notes'>): Promise<{
+  async calculateOrderTotal(request: CreateOrderRequest): Promise<{
     subtotal: number;
     shipping: number;
     tax: number;
@@ -244,9 +309,9 @@ class OrderService {
 
       // TODO: Реализовать отправку email уведомления
       console.log('Order confirmation sent:', {
-        to: order.shippingAddress.email,
-        orderNumber: order.orderNumber,
-        total: order.total,
+        toUserId: order.userId,
+        orderId: order.id,
+        totalAmount: order.totalAmount,
       });
 
       return true;

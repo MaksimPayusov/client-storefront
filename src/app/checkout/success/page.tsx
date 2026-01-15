@@ -4,12 +4,13 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
-import { CheckCircle, Home, ShoppingBag, Package, Mail, Phone } from 'lucide-react';
+import { CheckCircle, Home, ShoppingBag, Package, Mail } from 'lucide-react';
 import { useOrderStore, type Order } from '@/store/order.store';
 
 export default function CheckoutSuccessPage() {
   const router = useRouter();
   const [order, setOrder] = useState<Order | null>(null);
+  const { loadOrderById, getOrderById } = useOrderStore();
   const [loading, setLoading] = useState(true);
   const [orderId, setOrderId] = useState<string | null>(null);
 
@@ -25,20 +26,25 @@ export default function CheckoutSuccessPage() {
         return;
       }
 
-      // Имитация загрузки заказа
-      setTimeout(() => {
-        const orderStore = useOrderStore.getState();
-        const foundOrder = orderStore.getOrderById(id);
-
-        if (foundOrder) {
-          setOrder(foundOrder);
-        } else {
+      const loadOrder = async () => {
+        try {
+          await loadOrderById(id);
+          const foundOrder = getOrderById(id);
+          if (foundOrder) {
+            setOrder(foundOrder);
+          } else {
+            router.push('/');
+          }
+        } catch {
           router.push('/');
+        } finally {
+          setLoading(false);
         }
-        setLoading(false);
-      }, 500);
+      };
+
+      loadOrder();
     }
-  }, [router]);
+  }, [router, loadOrderById, getOrderById]);
 
   if (loading) {
     return (
@@ -80,11 +86,7 @@ export default function CheckoutSuccessPage() {
 
         <h1 className="text-4xl font-bold mb-4">Заказ оформлен!</h1>
         <p className="text-xl text-gray-600 mb-6">
-          Спасибо за ваш заказ #{order.orderNumber}
-        </p>
-        <p className="text-gray-600">
-          Мы отправили подтверждение на email{' '}
-          <span className="font-semibold">{order.shippingAddress.email}</span>
+          Спасибо за ваш заказ #{order.id.slice(0, 8)}
         </p>
       </div>
 
@@ -96,7 +98,7 @@ export default function CheckoutSuccessPage() {
           <div className="space-y-4">
             <div>
               <p className="text-sm text-gray-600 mb-1">Номер заказа</p>
-              <p className="font-bold text-lg">{order.orderNumber}</p>
+              <p className="font-bold text-lg">{order.id}</p>
             </div>
 
             <div>
@@ -115,17 +117,17 @@ export default function CheckoutSuccessPage() {
             <div>
               <p className="text-sm text-gray-600 mb-1">Статус</p>
               <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-                {order.status === 'PENDING' && 'Ожидает обработки'}
-                {order.status === 'PROCESSING' && 'В обработке'}
+                {order.status === 'NEW' && 'Новый'}
+                {order.status === 'PAID' && 'Оплачен'}
                 {order.status === 'SHIPPED' && 'Отправлен'}
-                {order.status === 'DELIVERED' && 'Доставлен'}
-                {order.status === 'CANCELLED' && 'Отменен'}
+                {order.status === 'COMPLETED' && 'Выполнен'}
+                {order.status === 'CANCELED' && 'Отменен'}
               </span>
             </div>
 
             <div>
               <p className="text-sm text-gray-600 mb-1">Сумма заказа</p>
-              <p className="font-bold text-2xl">{order.total.toLocaleString()} ₽</p>
+              <p className="font-bold text-2xl">{order.totalAmount.toLocaleString()} ₽</p>
             </div>
           </div>
         </div>
@@ -148,29 +150,17 @@ export default function CheckoutSuccessPage() {
               </div>
             </div>
 
-            <div className="flex items-start gap-3">
-              <Mail className="w-5 h-5 text-gray-400 mt-0.5" />
-              <div>
-                <p className="font-medium mb-1">Получатель</p>
-                <p className="text-sm text-gray-600">
-                  {order.shippingAddress.firstName} {order.shippingAddress.lastName}
-                </p>
+            {order.yandexPickupPointAddress && (
+              <div className="flex items-start gap-3">
+                <Mail className="w-5 h-5 text-gray-400 mt-0.5" />
+                <div>
+                  <p className="font-medium mb-1">Пункт выдачи</p>
+                  <p className="text-sm text-gray-600">
+                    {order.yandexPickupPointAddress}
+                  </p>
+                </div>
               </div>
-            </div>
-
-            <div className="flex items-start gap-3">
-              <Phone className="w-5 h-5 text-gray-400 mt-0.5" />
-              <div>
-                <p className="font-medium mb-1">Контактные данные</p>
-                <p className="text-sm text-gray-600">{order.shippingAddress.phone}</p>
-                <p className="text-sm text-gray-600">{order.shippingAddress.email}</p>
-              </div>
-            </div>
-
-            <div>
-              <p className="font-medium mb-1">Адрес доставки</p>
-              <p className="text-sm text-gray-600">{order.shippingAddress.street}</p>
-            </div>
+            )}
           </div>
         </div>
       </div>
@@ -184,25 +174,17 @@ export default function CheckoutSuccessPage() {
             <div key={index} className="flex items-center justify-between py-4 border-b last:border-0">
               <div className="flex items-center gap-4">
                 <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center">
-                  {item.imageUrl ? (
-                    <img
-                      src={item.imageUrl}
-                      alt={item.name}
-                      className="w-full h-full object-cover rounded-lg"
-                    />
-                  ) : (
-                    <Package className="w-8 h-8 text-gray-400" />
-                  )}
+                  <Package className="w-8 h-8 text-gray-400" />
                 </div>
                 <div>
-                  <h3 className="font-medium">{item.name}</h3>
+                  <h3 className="font-medium">{item.productId}</h3>
                   <p className="text-sm text-gray-600">
-                    {item.quantity} × {item.price.toLocaleString()} ₽
+                    {item.quantity} × {item.pricePerItem.toLocaleString()} ₽
                   </p>
                 </div>
               </div>
               <div className="font-bold">
-                {(item.price * item.quantity).toLocaleString()} ₽
+                {(item.pricePerItem * item.quantity).toLocaleString()} ₽
               </div>
             </div>
           ))}
@@ -210,7 +192,7 @@ export default function CheckoutSuccessPage() {
           <div className="pt-4 border-t">
             <div className="flex justify-between text-lg font-bold">
               <span>Итого</span>
-              <span>{order.total.toLocaleString()} ₽</span>
+              <span>{order.totalAmount.toLocaleString()} ₽</span>
             </div>
           </div>
         </div>

@@ -5,12 +5,9 @@ import { orderService } from '@/services/orders.service'
 // Типы
 export interface OrderItem {
   productId: string
-  name: string
-  price: number
+  shopId: string
   quantity: number
-  size?: string
-  color?: string
-  imageUrl?: string
+  pricePerItem: number
 }
 
 export interface ShippingAddress {
@@ -41,26 +38,39 @@ export interface PaymentMethod {
   isActive: boolean
 }
 
+export interface YandexDeliverySelection {
+  pickupPointId?: string
+  pickupPointAddress?: string
+  pickupPointName?: string
+  latitude?: number
+  longitude?: number
+  deliveryPrice?: number
+  deliveryTerm?: number
+  pickupPointType?: string
+  workSchedule?: string
+  phone?: string
+}
+
 export interface Order {
   id: string
-  orderNumber: string
   userId: string
-  shopId: string
+  recipientId: string
   items: OrderItem[]
-  subtotal: number
-  shippingCost: number
-  tax: number
-  total: number
-  currency: string
-  status: 'PENDING' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED' | 'REFUNDED'
-  shippingAddress: ShippingAddress
+  status: 'NEW' | 'PAID' | 'SHIPPED' | 'COMPLETED' | 'CANCELED'
   deliveryMethod: DeliveryMethod
   paymentMethod: PaymentMethod
-  notes?: string
   createdAt: string
-  updatedAt: string
-  estimatedDelivery?: string
-  trackingNumber?: string
+  totalAmount: number
+  yandexPickupPointId?: string
+  yandexPickupPointAddress?: string
+  yandexPickupPointName?: string
+  yandexLatitude?: number
+  yandexLongitude?: number
+  yandexDeliveryPrice?: number
+  yandexDeliveryTerm?: number
+  yandexPickupPointType?: string
+  yandexWorkSchedule?: string
+  yandexPhone?: string
 }
 
 interface OrderState {
@@ -81,17 +91,16 @@ interface OrderState {
   loadOrders: () => Promise<void>
   loadOrderById: (orderId: string) => Promise<void>
   createOrder: (data: {
-    shopId: string
+    recipientId: string
     items: Array<{
       productId: string
+      shopId: string
       quantity: number
-      size?: string
-      color?: string
+      pricePerItem: number
     }>
-    shippingAddress: ShippingAddress
     deliveryMethodId: string
     paymentMethodId: string
-    notes?: string
+    yandexDelivery?: YandexDeliverySelection
   }) => Promise<Order>
   cancelOrder: (orderId: string) => Promise<void>
   loadDeliveryMethods: () => Promise<void>
@@ -274,7 +283,7 @@ export const useOrderStore = create<OrderState>()(
       },
 
       getOrderByNumber: (orderNumber: string) => {
-        return get().orders.find(order => order.orderNumber === orderNumber)
+        return get().orders.find(order => order.id === orderNumber)
       },
 
       getOrdersByStatus: (status: Order['status']) => {
@@ -283,18 +292,18 @@ export const useOrderStore = create<OrderState>()(
 
       getPendingOrders: () => {
         return get().orders.filter(order =>
-          ['PENDING', 'PROCESSING', 'SHIPPED'].includes(order.status)
+          ['NEW', 'PAID', 'SHIPPED'].includes(order.status)
         )
       },
 
       getCompletedOrders: () => {
         return get().orders.filter(order =>
-          ['DELIVERED', 'CANCELLED', 'REFUNDED'].includes(order.status)
+          ['COMPLETED', 'CANCELED'].includes(order.status)
         )
       },
 
       calculateOrderSummary: (items, deliveryMethod) => {
-        const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+        const subtotal = items.reduce((sum, item) => sum + (item.pricePerItem * item.quantity), 0)
         const shipping = deliveryMethod?.price || 0
         const tax = subtotal * 0.2 // НДС 20%
         const total = subtotal + shipping + tax

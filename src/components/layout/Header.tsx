@@ -30,6 +30,7 @@ const Header = () => {
     { href: '/brands', label: 'Бренды' },
     { href: '/news', label: 'Новости' },
     { href: '/about', label: 'О нас' },
+    { href: '/yandex-delivery-test', label: 'Тест доставки' },
   ];
 
   const { totalQuantity } = useCartStore()

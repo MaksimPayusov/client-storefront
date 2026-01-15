@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { ArrowLeft, Package, Calendar, Truck, CreditCard, Search } from 'lucide-react';
@@ -9,19 +9,21 @@ import { useShopStore } from '@/store/shop.store';
 import { cn } from '@/lib/utils';
 
 export default function OrdersPage() {
-  const { orders, getUserOrders } = useOrderStore();
+  const { orders, getUserOrders, loadOrders, isLoading } = useOrderStore();
   const { goods } = useShopStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+
+  useEffect(() => {
+    loadOrders();
+  }, [loadOrders]);
 
   const userOrders = getUserOrders();
 
   // Фильтрация заказов
   const filteredOrders = userOrders.filter(order => {
     const matchesSearch =
-      order.orderNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.shippingAddress.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.shippingAddress.lastName.toLowerCase().includes(searchQuery.toLowerCase());
+      order.id.toLowerCase().includes(searchQuery.toLowerCase());
 
     const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
 
@@ -43,11 +45,11 @@ export default function OrdersPage() {
   // Форматирование статуса
   const getStatusText = (status: Order['status']) => {
     switch (status) {
-      case 'PENDING': return { text: 'Ожидает обработки', color: 'bg-yellow-100 text-yellow-800' };
-      case 'PROCESSING': return { text: 'В обработке', color: 'bg-blue-100 text-blue-800' };
+      case 'NEW': return { text: 'Новый', color: 'bg-yellow-100 text-yellow-800' };
+      case 'PAID': return { text: 'Оплачен', color: 'bg-blue-100 text-blue-800' };
       case 'SHIPPED': return { text: 'Отправлен', color: 'bg-purple-100 text-purple-800' };
-      case 'DELIVERED': return { text: 'Доставлен', color: 'bg-green-100 text-green-800' };
-      case 'CANCELLED': return { text: 'Отменен', color: 'bg-red-100 text-red-800' };
+      case 'COMPLETED': return { text: 'Выполнен', color: 'bg-green-100 text-green-800' };
+      case 'CANCELED': return { text: 'Отменен', color: 'bg-red-100 text-red-800' };
       default: return { text: 'Неизвестно', color: 'bg-gray-100 text-gray-800' };
     }
   };
@@ -126,11 +128,11 @@ export default function OrdersPage() {
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">Все статусы</option>
-              <option value="PENDING">Ожидает обработки</option>
-              <option value="PROCESSING">В обработке</option>
+              <option value="NEW">Новый</option>
+              <option value="PAID">Оплачен</option>
               <option value="SHIPPED">Отправлен</option>
-              <option value="DELIVERED">Доставлен</option>
-              <option value="CANCELLED">Отменен</option>
+              <option value="COMPLETED">Выполнен</option>
+              <option value="CANCELED">Отменен</option>
             </select>
           </div>
         </div>
@@ -160,7 +162,7 @@ export default function OrdersPage() {
                             <div>
                               <div className="flex items-center gap-3 mb-2">
                                 <h3 className="text-lg font-bold">
-                                  Заказ #{order.orderNumber}
+                                  Заказ #{order.id.slice(0, 8)}
                                 </h3>
                                 <span className={cn(
                                   "px-3 py-1 rounded-full text-xs font-medium",
@@ -195,7 +197,7 @@ export default function OrdersPage() {
 
                             <div className="text-right">
                               <div className="text-2xl font-bold mb-1">
-                                {order.total.toLocaleString()} ₽
+                                {order.totalAmount.toLocaleString()} ₽
                               </div>
                               <div className="text-sm text-gray-600">
                                 {order.items.length} товар{order.items.length > 1 ? 'а' : ''}
@@ -216,7 +218,7 @@ export default function OrdersPage() {
                                       {item.image ? (
                                         <img
                                           src={item.image}
-                                          alt={item.name}
+                                          alt={item.product?.name || 'Товар'}
                                           className="w-full h-full object-cover rounded-lg"
                                         />
                                       ) : (
@@ -224,14 +226,14 @@ export default function OrdersPage() {
                                       )}
                                     </div>
                                     <div>
-                                      <p className="font-medium">{item.name}</p>
+                                      <p className="font-medium">{item.product?.name || item.productId}</p>
                                       <p className="text-sm text-gray-600">
-                                        {item.quantity} × {item.price.toLocaleString()} ₽
+                                        {item.quantity} × {item.pricePerItem.toLocaleString()} ₽
                                       </p>
                                     </div>
                                   </div>
                                   <div className="font-bold">
-                                    {(item.price * item.quantity).toLocaleString()} ₽
+                                    {(item.pricePerItem * item.quantity).toLocaleString()} ₽
                                   </div>
                                 </div>
                               ))}
@@ -249,7 +251,9 @@ export default function OrdersPage() {
                           {/* Кнопка повтора заказа */}
                           <div className="flex justify-between items-center pt-4 border-t">
                             <div className="text-sm text-gray-600">
-                              Получатель: {order.shippingAddress.firstName} {order.shippingAddress.lastName}
+                              {order.yandexPickupPointAddress
+                                ? `Пункт выдачи: ${order.yandexPickupPointAddress}`
+                                : `Получатель ID: ${order.recipientId}`}
                             </div>
                             <Link href={`/checkout/success?orderId=${order.id}`}>
                               <Button variant="outline" size="sm">
