@@ -26,6 +26,13 @@ export default async function RootLayout({
 
   return (
     <html lang="ru" className="scroll-smooth">
+      <head>
+        {/* Яндекс.Доставка виджет */}
+        <script 
+          src="https://yastatic.net/s3/taxi-delivery-front/widget/v1.0.0/widget.js" 
+          async
+        />
+      </head>
       <body className={`${inter.className} bg-gray-50 text-gray-900`}>
         <ShopProvider shopDomain={shopDomain}>
           <AuthProvider>

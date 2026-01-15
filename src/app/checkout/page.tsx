@@ -8,6 +8,7 @@ import { ArrowLeft, Check, CreditCard, Truck, Home, Package } from 'lucide-react
 import { useOrderStore } from '@/store/order.store';
 import { useShopStore } from '@/store/shop.store';
 import { useCartStore } from '@/store/cart.store';
+import { YandexDeliveryWidget } from '@/components/delivery/YandexDeliveryWidget';
 import Link from 'next/link';
 
 export default function CheckoutPage() {
@@ -31,6 +32,7 @@ export default function CheckoutPage() {
   const [selectedPayment, setSelectedPayment] = useState(paymentMethods[0]?.id.toString() || '1');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [selectedPickupPoint, setSelectedPickupPoint] = useState<any>(null);
 
   // Получаем товары из корзины
   const cartProducts = cartItems.map(item => {
@@ -104,13 +106,14 @@ export default function CheckoutPage() {
           phone: formData.phone,
           email: formData.email,
           country: 'Russia', // TODO: add to form
-          city: formData.address.split(',')[0]?.trim() || 'Unknown',
-          street: formData.address,
-          postalCode: '000000', // TODO: add to form
+          city: selectedPickupPoint?.city || formData.address.split(',')[0]?.trim() || 'Unknown',
+          street: selectedPickupPoint?.address || formData.address,
+          postalCode: selectedPickupPoint?.postalCode || '000000',
         },
         deliveryMethodId: selectedDelivery.toString(),
         paymentMethodId: selectedPayment.toString(),
-        notes: formData.comment,
+        notes: formData.comment + 
+          (selectedPickupPoint ? `\n\nПункт выдачи: ${selectedPickupPoint.address}\nID ПВЗ: ${selectedPickupPoint.id || 'N/A'}` : ''),
       });
 
       clearCart();
@@ -279,6 +282,22 @@ export default function CheckoutPage() {
                 </label>
               ))}
             </div>
+
+            {/* Виджет Яндекс.Доставки для выбора ПВЗ */}
+            {selectedDelivery && (
+              <div className="mt-6">
+                <h3 className="font-semibold mb-4">Выберите пункт выдачи на карте:</h3>
+                <YandexDeliveryWidget
+                  city={formData.address.split(',')[0]?.trim() || 'Москва'}
+                  sourcePlatformStation="05e809bb-4521-42d9-a936-0fb0744c0fb3"
+                  weight={10000}
+                  onSelectPoint={(point) => {
+                    console.log('Выбран пункт выдачи:', point);
+                    setSelectedPickupPoint(point);
+                  }}
+                />
+              </div>
+            )}
           </section>
 
           {/* Оплата */}
